@@ -21,15 +21,20 @@ AIパワーユーザー・個人開発者向けのX投稿文を生成する。
 
 ### ステップ2.5: 情報鮮度チェック（MANDATORY - ツイート作成前の必須工程）
 
-**トピック選定後は絶対に news-freshness-checker サブエージェントを起動する**
+**トピック選定後は絶対にサブエージェントで鮮度チェックを起動する**
 
 実行コマンド:
 ```
-Task(subagent_type="news-freshness-checker", 
-     prompt="トピック: [TOPIC_NAME]
-             記事情報: [ARTICLE_INFO]
-             WebSearch結果: [SEARCH_RESULTS]
-             情報鮮度を厳格チェックしてください。")
+Task(subagent_type="general-purpose",
+     prompt="以下のスキルファイルを読んで、その指示に従って情報鮮度をチェックしてください:
+             C:\\Users\\Tenormusica\\x-auto\\skills\\news-freshness-checker\\PROMPT.md
+
+             チェック対象:
+             - トピック: [TOPIC_NAME]
+             - 記事情報: [ARTICLE_INFO]
+             - WebSearch結果: [SEARCH_RESULTS]
+
+             PROCEED/REJECT判定を出してください。")
 ```
 
 **鮮度チェック結果による分岐:**
@@ -160,12 +165,52 @@ Task(subagent_type="news-freshness-checker",
 
 ### ステップ7: 出力
 
-**【3段階レビューフロー必須】**
-1. **情報鮮度チェック**: news-freshness-checker サブエージェント実行（ステップ2.5で実施）
-2. **基本ルールレビュー**: review-tweet スキル実行
-3. **厳しめ有益性レビュー**: tweet-quality-judge スキル実行
+**【3段階レビューフロー必須 - 全てサブエージェントで独立実行】**
+
+1. **情報鮮度チェック**: ステップ2.5で実施済み
+
+2. **基本ルールレビュー**: review-tweet サブエージェント実行
+```
+Task(subagent_type="general-purpose",
+     prompt="以下のスキルファイルを読んで、その指示に従ってツイートをレビューしてください:
+             C:\\Users\\Tenormusica\\x-auto\\skills\\review-tweet\\PROMPT.md
+
+             レビュー対象ツイート:
+             [TWEET_TEXT]
+
+             調査情報:
+             - 競合比較結果: [COMPETITIVE_ANALYSIS]
+             - 数値の出典: [DATA_SOURCES]
+             - 情報鮮度: [FRESHNESS_INFO]
+
+             PASS/FAIL判定を出してください。")
+```
+
+3. **厳しめ有益性レビュー**: tweet-quality-judge サブエージェント実行
+```
+Task(subagent_type="general-purpose",
+     prompt="以下のスキルファイルを読んで、その指示に従って厳格に品質判定してください:
+             C:\\Users\\Tenormusica\\x-auto\\skills\\tweet-quality-judge\\PROMPT.md
+
+             判定対象ツイート:
+             [TWEET_TEXT]
+
+             引用リンク: [URL]
+             ツール性能調査結果: [TOOL_ANALYSIS]
+             真偽性確認結果: [VERIFICATION_RESULTS]
+             情報鮮度詳細: [FRESHNESS_DETAILS]
+             WebSearch実行履歴: [SEARCH_HISTORY]
+
+             A/B/C/D判定を出してください。")
+```
+
 4. **A判定で初めて合格・投稿可能**
 5. **B/C/D判定時は元ネタ変更を検討**
+
+**【サブエージェントレビューの意義】**
+- 生成者と別の独立したコンテキストでレビュー → 本当の第三者視点
+- 同一コンテキストの「まあいいか」バイアスを排除
+- 各レビュアーが生成時の思い入れなしで客観判定
 
 **【引用リンク必須ルール】**
 - ツイート本文の直下に必ず引用リンクを配置
