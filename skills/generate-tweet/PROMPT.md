@@ -16,9 +16,9 @@ AIパワーユーザー・個人開発者向けのX投稿文を生成する。
 - `D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\AI_Frontier_Capabilities_Master.md`
 - `D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\AI_Knowledge_Tips_Master.md`
 
-#### 2-B. 並列ネタ検索（3つのサブエージェントを同時実行）
+#### 2-B. 並列ネタ検索（6つのサブエージェントを同時実行）
 
-**以下の3つのTask toolを1つのレスポンス内で同時に呼び出す:**
+**以下の6つのTask toolを1つのレスポンス内で同時に呼び出す:**
 
 ```
 Task(subagent_type="general-purpose",
@@ -41,6 +41,27 @@ Task(subagent_type="general-purpose",
 
              検索キーワード: Claude Code, AI agent, LLM, prompt engineering
              今日の日付: [TODAY]")
+
+Task(subagent_type="general-purpose",
+     prompt="以下のスキルファイルを読んで実行:
+             C:\\Users\\Tenormusica\\x-auto\\skills\\parallel-news-search\\GITHUB.md
+
+             検索キーワード: Claude Code, AI agent, LLM, MCP
+             今日の日付: [TODAY]")
+
+Task(subagent_type="general-purpose",
+     prompt="以下のスキルファイルを読んで実行:
+             C:\\Users\\Tenormusica\\x-auto\\skills\\parallel-news-search\\PRODUCTHUNT.md
+
+             検索キーワード: AI tool, LLM, developer tool
+             今日の日付: [TODAY]")
+
+Task(subagent_type="general-purpose",
+     prompt="以下のスキルファイルを読んで実行:
+             C:\\Users\\Tenormusica\\x-auto\\skills\\parallel-news-search\\HUGGINGFACE.md
+
+             検索キーワード: LLM, local model, fine-tuned
+             今日の日付: [TODAY]")
 ```
 
 #### 2-C. 結果統合・ランキング
@@ -49,16 +70,20 @@ Task(subagent_type="general-purpose",
 
 | 優先度 | 条件 |
 |--------|------|
-| 1位 | 0-1日前 + 個人開発者がすぐ試せる具体的テクニック |
+| 1位 | 0-1日前 + 個人開発者がすぐ試せる具体的テクニック + 急上昇指標高 |
 | 2位 | 0-1日前 + ベンチマーク・数値比較あり |
 | 3位 | 2-3日前 + 独自の実装知見・失敗談 |
 | 4位 | 公式リリースの深掘り分析 |
+| 5位 | 新ツール・新モデル（急上昇確認済み） |
 
 **🎯 採用優先ソース:**
 - Show HN投稿（一次ソースとして高価値）
 - 有名AI技術者の実装Tips（@karpathy, @simonw等）
 - IndieHackersの成功事例（技術的詳細あり）
 - Reddit r/ClaudeAI, r/LocalLLaMAの実体験レポート
+- GitHub Trendingの急上昇リポジトリ（100+ stars/日）
+- Product Huntの新AIツール（500+ upvotes）
+- Hugging Faceの新モデル（10K+ DL/週）
 
 **🚨 ネタ選定時の除外対象（CRITICAL - 個人開発者に無関係なネタ）**
 
