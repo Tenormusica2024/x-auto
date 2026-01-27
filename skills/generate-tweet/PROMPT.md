@@ -8,16 +8,57 @@ AIパワーユーザー・個人開発者向けのX投稿文を生成する。
 ### ステップ1: 今日の日付確認
 現在の日付を確認してからネタ探しを開始。
 
-### ステップ2: ネタ選定
-以下の優先順位でネタを探索:
+### ステップ2: ネタ選定（並列検索構造）
 
-1. **Vault-Dドキュメント確認**
-   - `D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\AI_Frontier_Capabilities_Master.md`
-   - `D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\AI_Knowledge_Tips_Master.md`
+**🚀 並列検索サブエージェントで多角的にネタを探索**
 
-2. **WebSearch（1日以内のネタ優先）**
-   - `site:x.com [キーワード] [現在の月] [現在の年]`
-   - `site:reddit.com [キーワード] [現在の月] [現在の年]`
+#### 2-A. Vault-Dドキュメント確認（最初に実行）
+- `D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\AI_Frontier_Capabilities_Master.md`
+- `D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\AI_Knowledge_Tips_Master.md`
+
+#### 2-B. 並列ネタ検索（3つのサブエージェントを同時実行）
+
+**以下の3つのTask toolを1つのレスポンス内で同時に呼び出す:**
+
+```
+Task(subagent_type="general-purpose",
+     prompt="以下のスキルファイルを読んで実行:
+             C:\\Users\\Tenormusica\\x-auto\\skills\\parallel-news-search\\REDDIT.md
+
+             検索キーワード: Claude Code, AI agent, LLM, prompt engineering, MCP
+             今日の日付: [TODAY]")
+
+Task(subagent_type="general-purpose",
+     prompt="以下のスキルファイルを読んで実行:
+             C:\\Users\\Tenormusica\\x-auto\\skills\\parallel-news-search\\XCOM.md
+
+             検索キーワード: Claude Code, AI agent, LLM, prompt engineering
+             今日の日付: [TODAY]")
+
+Task(subagent_type="general-purpose",
+     prompt="以下のスキルファイルを読んで実行:
+             C:\\Users\\Tenormusica\\x-auto\\skills\\parallel-news-search\\TECHBLOG.md
+
+             検索キーワード: Claude Code, AI agent, LLM, prompt engineering
+             今日の日付: [TODAY]")
+```
+
+#### 2-C. 結果統合・ランキング
+
+各担当から返ってきた候補を以下の基準で優先順位付け:
+
+| 優先度 | 条件 |
+|--------|------|
+| 1位 | 0-1日前 + 個人開発者がすぐ試せる具体的テクニック |
+| 2位 | 0-1日前 + ベンチマーク・数値比較あり |
+| 3位 | 2-3日前 + 独自の実装知見・失敗談 |
+| 4位 | 公式リリースの深掘り分析 |
+
+**🎯 採用優先ソース:**
+- Show HN投稿（一次ソースとして高価値）
+- 有名AI技術者の実装Tips（@karpathy, @simonw等）
+- IndieHackersの成功事例（技術的詳細あり）
+- Reddit r/ClaudeAI, r/LocalLLaMAの実体験レポート
 
 **🚨 ネタ選定時の除外対象（CRITICAL - 個人開発者に無関係なネタ）**
 
