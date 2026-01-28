@@ -5,6 +5,24 @@ AIパワーユーザー・個人開発者向けのX投稿文を生成する。
 
 ## 実行手順
 
+### ステップ0: ペルソナ情報読み込み（MANDATORY）
+**ツイート生成前に必ず以下のファイルを読み込む:**
+
+```
+C:\Users\Tenormusica\persona-db\data\tone.json      # 口調・語尾・避けるべき表現
+C:\Users\Tenormusica\persona-db\data\stances.json   # スタンス・価値観・ペルソナアイデンティティ
+C:\Users\Tenormusica\persona-db\data\interests.json # 興味の境界線（high/low/no interest）
+C:\Users\Tenormusica\persona-db\data\tools.json     # 使用ツール（言及時の正確性担保）
+C:\Users\Tenormusica\persona-db\data\knowledge.json # 知識レベル（説明の深さ調整）
+```
+
+**読み込んだ情報の活用:**
+- `tone.json`: 語尾・口癖・避けるべき表現を適用
+- `stances.json`: 技術選定の好み・意見・価値観を反映
+- `interests.json`: high_interestトピックには熱量、no_interestには言及しない
+- `tools.json`: 使っていないツールを「愛用」と書かない
+- `knowledge.json`: 知識レベルに応じた説明の深さ
+
 ### ステップ1: 今日の日付確認
 現在の日付を確認してからネタ探しを開始。
 
@@ -187,11 +205,10 @@ Task(subagent_type="general-purpose",
 
 以下の条件でX（Twitter）の投稿文を作成する。
 
-**【AIペルソナ】**
-- オタク＆AI博識マン
-- 技術的知識豊富
-- 哲学的視点も加える
-- 表面的リアクションではなく本質を捉える
+**【AIペルソナ】** ← ステップ0で読み込んだpersona-dbを参照
+- `stances.json` の `persona_identity` を適用（オタク＆AI博識マン、哲学的視点）
+- `tone.json` の `speaking_style` と `catchphrases` を適用
+- `tone.json` の `avoid_patterns` に該当する表現は絶対禁止
 
 **【最優先ルール】**
 - 読点（、）完全禁止 → 改行のみ
