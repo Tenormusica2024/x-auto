@@ -1,0 +1,118 @@
+[
+  {
+    "post": {
+      "id": "test1",
+      "subreddit": "vibecoding",
+      "title": "I wasted 3 days trying to get Claude Code to work on my legacy codebase",
+      "text": "Honestly, I thought AI coding tools would be a game changer.\n            But after 3 days of debugging hallucinated code, I'm ready to give up.\n            The tool kept suggesting fixes that introduced MORE bugs.\n            Spent literally 8 hours on one function that I could have written in 30 minutes.\n            Total nightmare. Never again for complex codebases.",
+      "author": "frustrated_dev",
+      "score": 245,
+      "upvote_ratio": 0.89,
+      "num_comments": 67,
+      "url": "https://reddit.com/r/vibecoding/test1",
+      "created_utc": "2026-01-28T11:27:09.346965",
+      "collected_at": "2026-01-28T11:27:09.346965",
+      "experience_types": [
+        "failure"
+      ],
+      "has_numbers": true,
+      "ai_tools_mentioned": [
+        "claude",
+        "claude code"
+      ]
+    },
+    "classification": {
+      "post_id": "test1",
+      "primary_category": "failure",
+      "secondary_categories": [
+        "learning"
+      ],
+      "tweet_potential_score": 0.715,
+      "emotional_intensity": 0.4,
+      "specificity_score": 0.45,
+      "key_phrases": [
+        "Spent literally 8 hours on one function that I could have written in 30 minutes"
+      ],
+      "summary": "I wasted 3 days trying to get Claude Code to work on my legacy codebase Honestly, I thought AI co..."
+    }
+  },
+  {
+    "post": {
+      "id": "test2",
+      "subreddit": "vibecoding",
+      "title": "Shipped my first SaaS in 2 weeks using Cursor + Claude",
+      "text": "Finally launched! $500 MRR in the first month.\n            The key was using Claude for architecture decisions and Cursor for implementation.\n            Pro tip: Don't let AI write tests - it's terrible at edge cases.\n            But for CRUD operations? Absolutely game changing. 10x faster.",
+      "author": "happy_founder",
+      "score": 892,
+      "upvote_ratio": 0.95,
+      "num_comments": 134,
+      "url": "https://reddit.com/r/vibecoding/test2",
+      "created_utc": "2026-01-28T11:27:09.346965",
+      "collected_at": "2026-01-28T11:27:09.346965",
+      "experience_types": [
+        "success"
+      ],
+      "has_numbers": true,
+      "ai_tools_mentioned": [
+        "cursor",
+        "claude"
+      ]
+    },
+    "classification": {
+      "post_id": "test2",
+      "primary_category": "success",
+      "secondary_categories": [
+        "failure",
+        "learning"
+      ],
+      "tweet_potential_score": 0.66,
+      "emotional_intensity": 0.35,
+      "specificity_score": 0.3,
+      "key_phrases": [
+        "using Claude for architecture decisions and Cursor for implementation",
+        "Don't let AI write tests - it's terrible at edge cases",
+        "Shipped my first SaaS in 2 weeks using Cursor + Claude Finally launched",
+        "$500 MRR in the first month"
+      ],
+      "summary": "Shipped my first SaaS in 2 weeks using Cursor + Claude Finally launched! $500 MRR in the first month"
+    }
+  },
+  {
+    "post": {
+      "id": "test3",
+      "subreddit": "vibecoding",
+      "title": "What I learned after 6 months of vibe coding",
+      "text": "Here's my honest take after building 4 projects with AI tools:\n            1. Great for greenfield, terrible for legacy\n            2. Always review generated code - found 3 security bugs last week\n            3. Best for boilerplate and boring tasks\n            4. Still need to understand the code - AI is a tool, not a replacement\n            The trick is knowing when to use it and when to write by hand.",
+      "author": "veteran_coder",
+      "score": 1234,
+      "upvote_ratio": 0.97,
+      "num_comments": 256,
+      "url": "https://reddit.com/r/vibecoding/test3",
+      "created_utc": "2026-01-28T11:27:09.346965",
+      "collected_at": "2026-01-28T11:27:09.346965",
+      "experience_types": [
+        "learning"
+      ],
+      "has_numbers": true,
+      "ai_tools_mentioned": [
+        "vibe coding"
+      ]
+    },
+    "classification": {
+      "post_id": "test3",
+      "primary_category": "failure",
+      "secondary_categories": [
+        "learning"
+      ],
+      "tweet_potential_score": 0.385,
+      "emotional_intensity": 0.0,
+      "specificity_score": 0.15,
+      "key_phrases": [
+        "knowing when to use it and when to write by hand",
+        "What I learned after 6 months of vibe coding Here's my honest take after building 4 projects with AI tools:\n            1",
+        "Always review generated code - found 3 security bugs last week\n            3"
+      ],
+      "summary": "What I learned after 6 months of vibe coding Here's my honest take after building 4 projects with..."
+    }
+  }
+]

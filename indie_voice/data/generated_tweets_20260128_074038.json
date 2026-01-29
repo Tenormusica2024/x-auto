@@ -1,0 +1,20 @@
+[
+  {
+    "original_post_id": "test1",
+    "category": "failure",
+    "japanese_text": "マジで痛い目見た話。Spent literally 8 hours on one function that I could have written in 30 minutes (claude, claude code使用) days",
+    "character_count": 118,
+    "source_url": "https://reddit.com/r/vibecoding/test1",
+    "key_insight": "Spent literally 8 hours on one function that I could have written in 30 minutes",
+    "emotion_tag": "教訓"
+  },
+  {
+    "original_post_id": "test2",
+    "category": "success",
+    "japanese_text": "やっとできた。using Claude for architecture decisions and Cursor for implementation (cursor, claude使用) weeks",
+    "character_count": 101,
+    "source_url": "https://reddit.com/r/vibecoding/test2",
+    "key_insight": "using Claude for architecture decisions and Cursor for implementation",
+    "emotion_tag": "励み"
+  }
+]

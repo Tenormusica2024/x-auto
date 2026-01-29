@@ -1,0 +1,78 @@
+[
+  {
+    "post_id": "test1",
+    "category": "failure",
+    "title": "I wasted 3 days trying to get Claude Code to work on my legacy codebase",
+    "summary": "I wasted 3 days trying to get Claude Code to work on my legacy codebase Honestly, I thought AI co...",
+    "key_points": [
+      "Spent literally 8 hours on one function that I could have written in 30 minutes"
+    ],
+    "numbers": [
+      "days",
+      "days",
+      "hours"
+    ],
+    "ai_tools": [
+      "claude",
+      "claude code"
+    ],
+    "emotion": "reflection",
+    "source_url": "https://reddit.com/r/vibecoding/test1",
+    "engagement": {
+      "score": 245,
+      "comments": 67,
+      "upvote_ratio": 0.89
+    }
+  },
+  {
+    "post_id": "test2",
+    "category": "success",
+    "title": "Shipped my first SaaS in 2 weeks using Cursor + Claude",
+    "summary": "Shipped my first SaaS in 2 weeks using Cursor + Claude Finally launched! $500 MRR in the first month",
+    "key_points": [
+      "using Claude for architecture decisions and Cursor for implementation",
+      "Don't let AI write tests - it's terrible at edge cases",
+      "Shipped my first SaaS in 2 weeks using Cursor + Claude Finally launched",
+      "$500 MRR in the first month"
+    ],
+    "numbers": [
+      "weeks",
+      "MRR"
+    ],
+    "ai_tools": [
+      "cursor",
+      "claude"
+    ],
+    "emotion": "satisfaction",
+    "source_url": "https://reddit.com/r/vibecoding/test2",
+    "engagement": {
+      "score": 892,
+      "comments": 134,
+      "upvote_ratio": 0.95
+    }
+  },
+  {
+    "post_id": "test3",
+    "category": "failure",
+    "title": "What I learned after 6 months of vibe coding",
+    "summary": "What I learned after 6 months of vibe coding Here's my honest take after building 4 projects with...",
+    "key_points": [
+      "knowing when to use it and when to write by hand",
+      "What I learned after 6 months of vibe coding Here's my honest take after building 4 projects with AI tools:\n            1",
+      "Always review generated code - found 3 security bugs last week\n            3"
+    ],
+    "numbers": [
+      "months"
+    ],
+    "ai_tools": [
+      "vibe coding"
+    ],
+    "emotion": "reflection",
+    "source_url": "https://reddit.com/r/vibecoding/test3",
+    "engagement": {
+      "score": 1234,
+      "comments": 256,
+      "upvote_ratio": 0.97
+    }
+  }
+]
