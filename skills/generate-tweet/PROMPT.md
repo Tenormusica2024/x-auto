@@ -26,17 +26,17 @@ C:\Users\Tenormusica\persona-db\data\knowledge.json # 知識レベル（説明�
 ### ステップ1: 今日の日付確認
 現在の日付を確認してからネタ探しを開始。
 
-### ステップ2: ネタ選定（並列検索構造）
+### ステップ2: ネタ選定（マルチソース順次検索）
 
-**🚀 並列検索サブエージェントで多角的にネタを探索**
+**🚀 複数の検索サブエージェントで多角的にネタを探索**
 
 #### 2-A. Vault-Dドキュメント確認（最初に実行）
 - `D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\AI_Frontier_Capabilities_Master.md`
 - `D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\AI_Knowledge_Tips_Master.md`
 
-#### 2-B. 並列ネタ検索（6つのサブエージェントを同時実行）
+#### 2-B. マルチソース検索（6つのサブエージェントを順次実行）
 
-**以下の6つのTask toolを1つのレスポンス内で同時に呼び出す:**
+**以下の6つのTask toolを順番に呼び出す（実行順序は重要度順）:**
 
 ```
 Task(subagent_type="general-purpose",

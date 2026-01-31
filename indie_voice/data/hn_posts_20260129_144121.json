@@ -1,0 +1,571 @@
+[
+  {
+    "id": "43163011",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "claude code",
+    "title": "Claude 3.7 Sonnet and Claude Code",
+    "text": "",
+    "author": "bakugo",
+    "score": 2127,
+    "num_comments": 963,
+    "url": "https://www.anthropic.com/news/claude-3-7-sonnet",
+    "hn_url": "https://news.ycombinator.com/item?id=43163011",
+    "created_utc": "2025-02-24T18:28:59Z",
+    "collected_at": "2026-01-29T14:41:20.825734",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code"
+    ]
+  },
+  {
+    "id": "46593022",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "claude code",
+    "title": "Cowork: Claude Code for the rest of your work",
+    "text": "",
+    "author": "adocomplete",
+    "score": 1298,
+    "num_comments": 565,
+    "url": "https://claude.com/blog/cowork-research-preview",
+    "hn_url": "https://news.ycombinator.com/item?id=46593022",
+    "created_utc": "2026-01-12T19:27:19Z",
+    "collected_at": "2026-01-29T14:41:20.825734",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code"
+    ]
+  },
+  {
+    "id": "45163362",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "claude code",
+    "title": "Using Claude Code to modernize a 25-year-old kernel driver",
+    "text": "",
+    "author": "dmitrybrant",
+    "score": 929,
+    "num_comments": 318,
+    "url": "https://dmitrybrant.com/2025/09/07/using-claude-code-to-modernize-a-25-year-old-kernel-driver",
+    "hn_url": "https://news.ycombinator.com/item?id=45163362",
+    "created_utc": "2025-09-07T23:53:47Z",
+    "collected_at": "2026-01-29T14:41:20.825734",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code"
+    ]
+  },
+  {
+    "id": "44864185",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "claude code",
+    "title": "Claude Code is all you need",
+    "text": "",
+    "author": "sixhobbits",
+    "score": 851,
+    "num_comments": 504,
+    "url": "https://dwyer.co.za/static/claude-code-is-all-you-need.html",
+    "hn_url": "https://news.ycombinator.com/item?id=44864185",
+    "created_utc": "2025-08-11T14:03:46Z",
+    "collected_at": "2026-01-29T14:41:20.825734",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code"
+    ]
+  },
+  {
+    "id": "46765460",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "vibe coding",
+    "title": "After two years of vibecoding, I'm back to writing by hand",
+    "text": "",
+    "author": "mobitar",
+    "score": 850,
+    "num_comments": 626,
+    "url": "https://atmoio.substack.com/p/after-two-years-of-vibecoding-im",
+    "hn_url": "https://news.ycombinator.com/item?id=46765460",
+    "created_utc": "2026-01-26T13:36:22Z",
+    "collected_at": "2026-01-29T14:41:21.447798",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": []
+  },
+  {
+    "id": "45416228",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "claude code",
+    "title": "Claude Code 2.0",
+    "text": "",
+    "author": "polyrand",
+    "score": 842,
+    "num_comments": 413,
+    "url": "https://www.npmjs.com/package/@anthropic-ai/claude-code",
+    "hn_url": "https://news.ycombinator.com/item?id=45416228",
+    "created_utc": "2025-09-29T17:12:13Z",
+    "collected_at": "2026-01-29T14:41:20.825734",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code"
+    ]
+  },
+  {
+    "id": "46545620",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "claude code",
+    "title": "How to code Claude Code in 200 lines of code",
+    "text": "",
+    "author": "nutellalover",
+    "score": 816,
+    "num_comments": 240,
+    "url": "https://www.mihaileric.com/The-Emperor-Has-No-Clothes/",
+    "hn_url": "https://news.ycombinator.com/item?id=46545620",
+    "created_utc": "2026-01-08T19:54:26Z",
+    "collected_at": "2026-01-29T14:41:20.825734",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code"
+    ]
+  },
+  {
+    "id": "44811567",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "claude code",
+    "title": "Claude Code IDE integration for Emacs",
+    "text": "",
+    "author": "kgwgk",
+    "score": 782,
+    "num_comments": 266,
+    "url": "https://github.com/manzaltu/claude-code-ide.el",
+    "hn_url": "https://news.ycombinator.com/item?id=44811567",
+    "created_utc": "2025-08-06T13:17:38Z",
+    "collected_at": "2026-01-29T14:41:20.825734",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code"
+    ]
+  },
+  {
+    "id": "45116688",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "claude code",
+    "title": "Claude Code: Now in Beta in Zed",
+    "text": "",
+    "author": "meetpateltech",
+    "score": 683,
+    "num_comments": 406,
+    "url": "https://zed.dev/blog/claude-code-via-acp",
+    "hn_url": "https://news.ycombinator.com/item?id=45116688",
+    "created_utc": "2025-09-03T15:07:20Z",
+    "collected_at": "2026-01-29T14:41:20.825734",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code"
+    ]
+  },
+  {
+    "id": "46549823",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "claude code",
+    "title": "Anthropic blocks third-party use of Claude Code subscriptions",
+    "text": "",
+    "author": "sergiotapia",
+    "score": 625,
+    "num_comments": 513,
+    "url": "https://github.com/anomalyco/opencode/issues/7410",
+    "hn_url": "https://news.ycombinator.com/item?id=46549823",
+    "created_utc": "2026-01-09T03:44:35Z",
+    "collected_at": "2026-01-29T14:41:20.825734",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code",
+      "anthropic"
+    ]
+  },
+  {
+    "id": "43613194",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "claude code",
+    "title": "Show HN: Browser MCP – Automate your browser using Cursor, Claude, VS Code",
+    "text": "",
+    "author": "namuorg",
+    "score": 616,
+    "num_comments": 217,
+    "url": "https://browsermcp.io/",
+    "hn_url": "https://news.ycombinator.com/item?id=43613194",
+    "created_utc": "2025-04-07T16:25:45Z",
+    "collected_at": "2026-01-29T14:41:20.825734",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "cursor"
+    ]
+  },
+  {
+    "id": "46734302",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "vibe coding",
+    "title": "Gas Town's agent patterns, design bottlenecks, and vibecoding at scale",
+    "text": "",
+    "author": "pavel_lishin",
+    "score": 401,
+    "num_comments": 435,
+    "url": "https://maggieappleton.com/gastown",
+    "hn_url": "https://news.ycombinator.com/item?id=46734302",
+    "created_utc": "2026-01-23T16:19:18Z",
+    "collected_at": "2026-01-29T14:41:21.447798",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": []
+  },
+  {
+    "id": "44742251",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "vibe coding",
+    "title": "I know when you're vibe coding",
+    "text": "",
+    "author": "thunderbong",
+    "score": 353,
+    "num_comments": 173,
+    "url": "https://alexkondov.com/i-know-when-youre-vibe-coding/",
+    "hn_url": "https://news.ycombinator.com/item?id=44742251",
+    "created_utc": "2025-07-31T04:16:40Z",
+    "collected_at": "2026-01-29T14:41:21.447798",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "vibe coding"
+    ]
+  },
+  {
+    "id": "46765120",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "vibe coding",
+    "title": "Vibe coding kills open source",
+    "text": "",
+    "author": "kgwgk",
+    "score": 321,
+    "num_comments": 281,
+    "url": "https://arxiv.org/abs/2601.15494",
+    "hn_url": "https://news.ycombinator.com/item?id=46765120",
+    "created_utc": "2026-01-26T13:01:00Z",
+    "collected_at": "2026-01-29T14:41:21.447798",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "vibe coding"
+    ]
+  },
+  {
+    "id": "44302870",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "vibe coding",
+    "title": "What Google Translate can tell us about vibecoding",
+    "text": "",
+    "author": "todsacerdoti",
+    "score": 288,
+    "num_comments": 171,
+    "url": "https://ingrids.space/posts/what-google-translate-can-tell-us-about-vibecoding/",
+    "hn_url": "https://news.ycombinator.com/item?id=44302870",
+    "created_utc": "2025-06-17T19:23:10Z",
+    "collected_at": "2026-01-29T14:41:21.447798",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": []
+  },
+  {
+    "id": "46420453",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "vibe coding",
+    "title": "Show HN: Vibe coding a bookshelf with Claude Code",
+    "text": "",
+    "author": "balajmarius",
+    "score": 284,
+    "num_comments": 210,
+    "url": "https://balajmarius.com/writings/vibe-coding-a-bookshelf-with-claude-code/",
+    "hn_url": "https://news.ycombinator.com/item?id=46420453",
+    "created_utc": "2025-12-29T13:22:59Z",
+    "collected_at": "2026-01-29T14:41:21.447798",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code",
+      "vibe coding"
+    ]
+  },
+  {
+    "id": "44780878",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "vibe coding",
+    "title": "Typed languages are better suited for vibecoding",
+    "text": "",
+    "author": "hosolmaz",
+    "score": 274,
+    "num_comments": 229,
+    "url": "https://solmaz.io/typed-languages-are-better-suited-for-vibecoding",
+    "hn_url": "https://news.ycombinator.com/item?id=44780878",
+    "created_utc": "2025-08-03T23:55:31Z",
+    "collected_at": "2026-01-29T14:41:21.447798",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": []
+  },
+  {
+    "id": "46227422",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "vibe coding",
+    "title": "Vibe coding is mad depressing",
+    "text": "",
+    "author": "dirtylowprofile",
+    "score": 263,
+    "num_comments": 159,
+    "url": "https://law.gmnz.xyz/vibe-coding-is-mad-depressing/",
+    "hn_url": "https://news.ycombinator.com/item?id=46227422",
+    "created_utc": "2025-12-11T03:50:04Z",
+    "collected_at": "2026-01-29T14:41:21.447798",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "vibe coding"
+    ]
+  },
+  {
+    "id": "43739037",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "vibe coding",
+    "title": "Vibe Coding is not an excuse for low-quality work",
+    "text": "",
+    "author": "saikatsg",
+    "score": 259,
+    "num_comments": 200,
+    "url": "https://addyo.substack.com/p/vibe-coding-is-not-an-excuse-for",
+    "hn_url": "https://news.ycombinator.com/item?id=43739037",
+    "created_utc": "2025-04-19T20:00:17Z",
+    "collected_at": "2026-01-29T14:41:21.447798",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "vibe coding"
+    ]
+  },
+  {
+    "id": "45320431",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "vibe coding",
+    "title": "Vibe coding cleanup as a service",
+    "text": "",
+    "author": "sjdonado",
+    "score": 250,
+    "num_comments": 144,
+    "url": "https://donado.co/en/articles/2025-09-16-vibe-coding-cleanup-as-a-service/",
+    "hn_url": "https://news.ycombinator.com/item?id=45320431",
+    "created_utc": "2025-09-21T06:01:49Z",
+    "collected_at": "2026-01-29T14:41:21.447798",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "vibe coding"
+    ]
+  },
+  {
+    "id": "44768119",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "cursor ai coding",
+    "title": "Cursor's AI coding agent morphed 'into local shell' with one-line prompt attack",
+    "text": "",
+    "author": "geox",
+    "score": 3,
+    "num_comments": 0,
+    "url": "https://cyberscoop.com/cursor-ai-prompt-injection-attack-remote-code-privileges-aimlabs/",
+    "hn_url": "https://news.ycombinator.com/item?id=44768119",
+    "created_utc": "2025-08-02T14:56:08Z",
+    "collected_at": "2026-01-29T14:41:21.164761",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "cursor",
+      "ai coding"
+    ]
+  },
+  {
+    "id": "45166228",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "cursor ai coding",
+    "title": "Ask HN: What are the tech stack you use in 2025?",
+    "text": "I&#x27;m writing a detailed article to mention all the tech stack to consider to start a new product or SAAS in 2025.<p>It would be beginner friendly.<p>Suggest what you find helpful and will add it.<p>The list so far - \nFrontend - Next.js, Astro \nBackend - Python, Go\nDatabase - Supabase, SQLite, Turso \nAuth - Clerk, Auth.js\nAnalytics - Google Analytics\nEmail - AWS SES\nPayment - Stripe \nCMS - Payload, Ghost\nNewsletter - Substack, Beehiv, Kit\nDocument - Docusaurus, Fuma, Nextra \nSecurity&#x2F;Storage - Cloudflare \nVersion control - GitHub\nDeployment - Vercel, Netlify \nSelf host - Digital ocean, Hetzner\nCode Editors - VS code, Cursor\nAI coding - Lovable, Bolt\nSearch - Algolia<p>Let me know if I did miss any section.",
+    "author": "sadeed08",
+    "score": 3,
+    "num_comments": 2,
+    "url": "",
+    "hn_url": "https://news.ycombinator.com/item?id=45166228",
+    "created_utc": "2025-09-08T09:25:31Z",
+    "collected_at": "2026-01-29T14:41:21.164761",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "cursor",
+      "ai coding"
+    ]
+  },
+  {
+    "id": "45260129",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "cursor ai coding",
+    "title": "My friend was spending $2k/month on Cursor",
+    "text": "My friend is running out of cash and out of his runway. So I asked him to break down his monthly expenses since I know people in the same area spending way less.<p>Turns out he&#x27;s dropping $2,000&#x2F;month on Cursor for AI coding. It&#x27;s honestly the craziest thing I&#x27;ve heard in a while.<p>I told him to switch to Claude Code, which handles all my AI coding needs for around $20&#x2F;month. I&#x27;m an experienced dev so I don&#x27;t need AI for every little thing, but even if he&#x27;s a heavy user, $200&#x2F;month should easily cover his needs.<p>Just like that, I saved him at least $1,800&#x2F;month.<p>Had to share this because apparently we&#x27;re living in a world where you can accidentally spend more on AI coding tools than on your rent.<p>Do many people find Cursor&#x2F;Windsurf obsolete when there&#x27;s Claude Code?",
+    "author": "BohdanPetryshyn",
+    "score": 2,
+    "num_comments": 0,
+    "url": "",
+    "hn_url": "https://news.ycombinator.com/item?id=45260129",
+    "created_utc": "2025-09-16T09:48:05Z",
+    "collected_at": "2026-01-29T14:41:21.164761",
+    "experience_types": [
+      "general"
+    ],
+    "has_numbers": true,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code",
+      "cursor",
+      "ai coding",
+      "windsurf"
+    ]
+  },
+  {
+    "id": "43503546",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "cursor ai coding",
+    "title": "Show HN: WebPilot – \"Cursor\" for the Browser",
+    "text": "Hey HN<p>I just launched the first version of WebPilot – a browser extension that turns your browser into something closer to an AI-powered assistant. Think of it like  Cursor IDE, but for the web.<p>You can give it commands like “click the login button,” “fill this form,” “scroll down and read comments,” or even “grab all the email addresses from this page” – and it’ll do it. It highlights elements, navigates between pages, works on sites like Reddit and HN, and can even take screenshots or copy stuff to your clipboard.<p>I was inspired by the way Cursor integrates AI into coding(use it everyday for all my projects), and wanted to bring that same feel to the browser. Most of us spend hours online doing repetitive stuff, so why not let an AI handle it?<p>What it can do so far:<p>- Click buttons, fill forms, scroll pages – all by command<p>- Extract data and interact with content on Reddit, Hacker News, etc.<p>- Works with voice input (or just type commands)<p>- Has utility tools like page clicks, inputs, screenshots, clipboard copy<p>- Super customizable – hotkeys, model selection(now OpenAI and Anthropic, others is progress), profiles for specific sites with automatic choosing based on opened website<p>- MCP support via SSE transport (for STDIO you could use mcp-proxy of supergateway)<p>Why I’m posting here<p>This is very much a “v1” – it works, but I’m still shaping what it should be with feedback from early users. I’m looking for people who want to try it out and help shape the future of browser automation with AI.<p>There’s a one-time early adopter deal ($199) that gives you all premium features forever + GitHub read access. No subscriptions, no recurring charges.<p>Would love any feedback or feature ideas from the HN crowd – especially what you’d want to use a browser agent like this for.<p>Thanks!",
+    "author": "jetbootsmaker",
+    "score": 2,
+    "num_comments": 0,
+    "url": "https://getwebpilot.app",
+    "hn_url": "https://news.ycombinator.com/item?id=43503546",
+    "created_utc": "2025-03-28T10:16:14Z",
+    "collected_at": "2026-01-29T14:41:21.164761",
+    "experience_types": [
+      "failure",
+      "success"
+    ],
+    "has_numbers": true,
+    "ai_tools_mentioned": [
+      "cursor",
+      "anthropic",
+      "openai"
+    ]
+  },
+  {
+    "id": "46734531",
+    "source": "hackernews",
+    "story_type": "search",
+    "search_query": "cursor ai coding",
+    "title": "Show HN: Manim Skills – Claude Code skill for creating 3b1B style animations",
+    "text": "I built this to solve a problem I kept running into: every time I asked Claude Code or Cursor to help with Manim animations, it mixed up APIs between Manim Community Edition and ManimGL (3Blue1Brown’s version), or used deprecated patterns.<p>This repository packages battle tested best practices and working code examples as “skills” that AI agents can automatically load when you are working with Manim.<p>Install:\nnpx skills add adithya-s-k&#x2F;manim_skill<p>What’s inside:\n- Separate skills for Manim Community Edition and ManimGL (they are incompatible frameworks)\n- Working code examples for scenes, animations, 3D, camera control, and LaTeX\n- Common patterns and pitfalls to avoid<p>It uses the open skills.sh standard, so it works across Claude Code, Cursor, and other AI coding tools.<p>Happy to answer questions about the implementation or Manim in general.",
+    "author": "Adithya-Kolavi",
+    "score": 2,
+    "num_comments": 0,
+    "url": "https://github.com/adithya-s-k/manim_skill",
+    "hn_url": "https://news.ycombinator.com/item?id=46734531",
+    "created_utc": "2026-01-23T16:37:10Z",
+    "collected_at": "2026-01-29T14:41:21.164761",
+    "experience_types": [
+      "failure",
+      "success",
+      "learning"
+    ],
+    "has_numbers": false,
+    "ai_tools_mentioned": [
+      "claude",
+      "claude code",
+      "cursor",
+      "ai coding"
+    ]
+  }
+]
