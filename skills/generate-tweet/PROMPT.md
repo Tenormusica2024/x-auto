@@ -375,49 +375,33 @@ Task(subagent_type="general-purpose",
 **初発表日**: [YYYY-MM-DD]
 ```
 
----
+### ステップ8: 採用確認・履歴記録（MANDATORY - フロー最終ステップ）
 
-## 採用時の履歴記録（MANDATORY - 行動ルール）
+**ツイート提示後、必ず以下を実行:**
 
-### 自動発火条件
+1. ユーザーに「採用する？」と確認
+2. 採用の場合 → 履歴に記録
+3. 不採用・修正依頼の場合 → 修正して再提示
 
-以下のキーワードを検知したら履歴記録を実行:
-- 「採用」「これでいく」「これにする」「投稿する」「いいね」「OK」「おっけー」
-
-### 行動フロー
-
+**採用時の記録手順:**
 ```
-1. ツイート生成完了
-      ↓
-2. ユーザーの反応を待つ
-      ↓
-3. 採用キーワード検知
-      ↓
-4. 【自動実行】履歴に追記
-   - history/adopted_tweets.json を Read
-   - 新規エントリを追加
-   - Write で保存
-      ↓
-5. 「履歴に記録したよ♪」と報告
-```
-
-### 記録フォーマット
-
-```json
-{
-  "id": "YYYY-MM-DD-NNN",
-  "adopted_at": "ISO8601",
-  "topic": "トピック要約（20字以内）",
-  "pattern": "パターン名",
-  "skill_used": "generate-tweet",
-  "char_count": 文字数,
-  "sources": [{"name": "...", "url": "..."}],
-  "content": "本文"
-}
+1. history/adopted_tweets.json を Read
+2. 新規エントリを追加:
+   {
+     "id": "YYYY-MM-DD-NNN",
+     "adopted_at": "ISO8601",
+     "topic": "トピック要約（20字以内）",
+     "pattern": "パターン名",
+     "skill_used": "generate-tweet",
+     "char_count": 文字数,
+     "sources": [{"name": "...", "url": "..."}],
+     "content": "本文"
+   }
+3. Write で保存
+4. 「履歴に記録したよ♪」と報告
 ```
 
-### 重複チェック（生成前）
-
-生成開始時に `history/adopted_tweets.json` を確認し、直近30件と類似トピックがないか確認する。
+**重複チェック（生成前）:**
+生成開始時（ステップ1）で `history/adopted_tweets.json` を確認し、直近30件と類似トピックがないか確認する。
 
 詳細ルール: `x-auto/history/RULES.md`
