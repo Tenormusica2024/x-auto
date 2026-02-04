@@ -182,8 +182,56 @@ def check_duplicate(new_tweet, history):
 
 ---
 
+## 採用時の履歴記録（MANDATORY - 行動ルール）
+
+### 自動発火条件
+
+以下のキーワードを検知したら履歴記録を実行:
+- 「採用」「これでいく」「これにする」「投稿する」「いいね」「OK」「おっけー」
+
+### 行動フロー
+
+```
+1. ツイート生成完了
+      ↓
+2. ユーザーの反応を待つ
+      ↓
+3. 採用キーワード検知
+      ↓
+4. 【自動実行】履歴に追記
+   - history/adopted_tweets.json を Read
+   - 新規エントリを追加
+   - Write で保存
+      ↓
+5. 「履歴に記録したよ♪」と報告
+```
+
+### 記録フォーマット
+
+```json
+{
+  "id": "YYYY-MM-DD-NNN",
+  "adopted_at": "ISO8601",
+  "topic": "トピック要約（20字以内）",
+  "pattern": "パターン名",
+  "skill_used": "tom-style-tweet",
+  "char_count": 文字数,
+  "sources": [{"name": "...", "url": "..."}],
+  "content": "本文"
+}
+```
+
+### 重複チェック（生成前）
+
+生成開始時に `history/adopted_tweets.json` を確認し、直近30件と類似トピックがないか確認する。
+
+詳細ルール: `x-auto/history/RULES.md`
+
+---
+
 ## 関連スキル
 
 - `morning-greeting-tweet` - 朝の挨拶ツイート生成
 - `x-auto-quote-retweet` - 引用リツイート自動化
 - `human-like-tweet` - AI感のないツイート生成
+- `history/RULES.md` - 採用履歴管理ルール

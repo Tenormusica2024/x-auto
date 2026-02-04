@@ -1,0 +1,25 @@
+{
+  "description": "採用ツイートの履歴",
+  "last_updated": "2026-02-04T21:45:00+09:00",
+  "tweets": [
+    {
+      "id": "2026-02-04-001",
+      "adopted_at": "2026-02-04T21:42:00+09:00",
+      "topic": "日本の若者の将来悲観とAI楽観の逆説",
+      "pattern": "データ並列型（事実提示→問いかけ）",
+      "skill_used": "long-form-tweet",
+      "char_count": 278,
+      "sources": [
+        {
+          "name": "日本財団18歳意識調査",
+          "url": "https://www.nippon.com/en/japan-data/h01309/"
+        },
+        {
+          "name": "Ipsos AI意識調査",
+          "url": "https://www.taipeitimes.com/News/editorials/archives/2026/01/10/2003850354"
+        }
+      ],
+      "content": "日本財団の18歳意識調査で「自国の将来が良くなる」と思う若者は15%\nこれ6カ国中で最低の数字\n\n一方でIpsosの32カ国調査だと「AIに不安を感じる」日本人は25%\nこれも調査対象国で最低\n\n将来には絶望してるのにAIには楽観的という逆説的な状況になってる\n\n従来のシステムに期待できないからこそ\n「外部からの変化」に希望を託してるのかもしれないし\n単に「失うものがない」からAIを恐れないだけかもしれない\n\nどっちにしろ他国とは違う構造でAI導入が進む可能性はある\n\nhttps://www.nippon.com/en/japan-data/h01309/"
+    }
+  ]
+}
