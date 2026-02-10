@@ -10,15 +10,7 @@
 
 ### ステップ0: ペルソナ情報読み込み（MANDATORY）
 
-**ツイート生成前に必ず以下のファイルを読み込む:**
-
-```
-C:\Users\Tenormusica\persona-db\data\tone.json      # 口調・語尾
-C:\Users\Tenormusica\persona-db\data\stances.json   # スタンス・価値観
-C:\Users\Tenormusica\persona-db\data\interests.json # 興味の境界線
-C:\Users\Tenormusica\persona-db\data\tools.json     # 使用ツール
-C:\Users\Tenormusica\persona-db\data\knowledge.json # 知識レベル
-```
+`common/persona-ref.md` の手順に従い、persona-dbの各データファイルを読み込む。
 
 ---
 
@@ -101,15 +93,9 @@ C:\Users\Tenormusica\persona-db\data\knowledge.json # 知識レベル
 
 ### ステップ4: 文章作成
 
-#### 最優先ルール（generate-tweetと共通）
+#### 最優先ルール（共通）
 
-- 読点（、）は最小限 → 改行で代用
-- 絵文字0個（完全禁止）
-- ハッシュタグ禁止
-- 敬語禁止（温和な常体で統一）
-- 抽象的感想禁止（「すごい」「ヤバい」NG）
-- 1つの文章塊の途中での改行は禁止
-- 引用リンク必須
+`common/format-rules.md`（読点・絵文字・ハッシュタグ・改行・敬語・引用リンク等）および `common/anti-ai-rules.md`（抽象的感想禁止等）を適用。
 
 #### 長文ツイート固有ルール
 
@@ -118,18 +104,9 @@ C:\Users\Tenormusica\persona-db\data\knowledge.json # 知識レベル
 - **専門用語には自然言語の言い換えを併記**
 - **ポジティブトーンをデフォルトに**
 
-#### 推奨語尾（ペルソナ準拠）
+#### 推奨語尾・禁止語尾
 
-```
-✅ 「〜んだよね」（前から思ってた感）
-✅ 「〜ではある」（断定だが押しつけがましくない）
-✅ 「〜感じがする」（柔らかい推測）
-✅ 「〜になってる」（客観的観察）
-
-❌ 「〜んだな」（今気づいた感、AI的）
-❌ 「〜かな...」（結論がない）
-❌ 「〜ですね」（敬語）
-```
+`common/expression-rules.md` の推奨語尾・禁止語尾・自分フィルター原則・文体の基本姿勢・文章構成の自然な流れを適用。
 
 ---
 

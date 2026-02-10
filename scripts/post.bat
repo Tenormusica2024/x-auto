@@ -10,11 +10,16 @@ set ANTHROPIC_API_KEY=
 REM Claude in Chromeで投稿生成・実行
 "C:\Users\Tenormusica\.bun\bin\claude.exe" --chrome --dangerously-skip-permissions -p "You are an X (Twitter) auto-posting agent. Execute the following workflow:
 
-1. READ the skill file: C:\Users\Tenormusica\x-auto\skills\generate-tweet\PROMPT.md
-2. GENERATE a tweet following the rules in the skill file
-3. REVIEW the tweet using: C:\Users\Tenormusica\x-auto\skills\review-tweet\PROMPT.md
-4. If review passes, POST to X.com using: C:\Users\Tenormusica\x-auto\skills\post-tweet\PROMPT.md
-5. Take a screenshot after posting and save the result
+1. READ the shared rules (in this order):
+   - C:\Users\Tenormusica\x-auto\common\persona-ref.md
+   - C:\Users\Tenormusica\x-auto\common\anti-ai-rules.md
+   - C:\Users\Tenormusica\x-auto\common\format-rules.md
+   - C:\Users\Tenormusica\x-auto\common\expression-rules.md
+2. READ the skill file: C:\Users\Tenormusica\x-auto\skills\generate-tweet\PROMPT.md
+3. GENERATE a tweet following the shared rules + skill file
+4. REVIEW the tweet using: C:\Users\Tenormusica\x-auto\skills\review-tweet\PROMPT.md
+5. If review passes, POST to X.com using: C:\Users\Tenormusica\x-auto\skills\post-tweet\PROMPT.md
+6. Take a screenshot after posting and save the result
 
 Account: @sena_09_04
 Language: Japanese
