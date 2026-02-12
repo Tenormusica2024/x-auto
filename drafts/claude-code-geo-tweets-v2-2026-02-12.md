@@ -15,11 +15,11 @@ Claude CodeのHooksにはPreToolUse/PostToolUseっていう「ツール実行の
 
 ---
 
-## Tweet 2: Skills定期実行パイプライン（SKILL.md + Task Scheduler）
+## Tweet 2: Skills定期実行パイプライン（SKILL.md + cron/Task Scheduler）【Politeモード】
 
-Claude Codeは.claude/skills/にSKILL.mdを置くとカスタム/コマンドになる。これをclaude -p(非対話モード) + Task Schedulerに載せると「情報収集→分析→構造化レポート→記事ドラフト」の全自動パイプラインが毎朝勝手に回る
+Claude Codeは.claude/skills/にSKILL.mdを置くとカスタムコマンドになります。これをclaude -p(非対話モード)とcron(Mac/Linux)やTask Scheduler(Windows)に載せると毎朝自動で実行される仕組みが作れます
 
-GEOで最も効くのは「定期更新される構造化データ」でこれを人力ゼロで維持できる。毎朝6時に最新AIニュースレポートが自動生成されてる状態。ChatGPTにもCursorにも「スケジュール実行可能なカスタムスキル」の仕組みはない。Clineにもない
+情報収集から分析して構造化レポートを生成し記事ドラフトまで出力する全自動パイプラインを組むと実質的にOpenClawやDeep Researchと同じような自動リサーチ環境が手元で動いている状態になります。毎朝6時に最新レポートが生成されている状態を人力ゼロで維持できるのはかなり便利だと感じています
 
 引用リンク: なし（自身の運用経験）
 
