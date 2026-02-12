@@ -79,9 +79,89 @@ x-auto/
 └── logs/                  # 実行ログ
 ```
 
+## X API Pay-Per-Use（公式API）- 積極活用推奨
+
+X公式API（従量課金制）経由での投稿・読取・インプレッション取得・DM送信。
+**コストが極めて安い（投稿1件1.5円）ため、積極的に使ってよい。**
+
+### コスト感覚（重要）
+| 操作 | 単価 | 感覚 |
+|------|------|------|
+| ツイート投稿 | $0.010（約1.5円） | タダ同然。遠慮なく使う |
+| ツイート読取 | $0.005（約0.75円） | 1日50件読んでも37円 |
+| プロフィール取得 | $0.010（約1.5円） | 気にしない |
+| $5チャージ | 投稿500回分 or 読取1,000回分 | 数ヶ月持つ |
+
+**→ CiCで投稿するかAPI経由で投稿するか迷ったらAPI経由を選んでよい。**
+**→ インプレッション取得やメトリクス分析は気軽に実行してよい。**
+
+### 設定・実行方法
+**設定ファイル**: `C:\Users\Tenormusica\x-auto-posting\.env`（認証キー5種格納済み）
+**テストスクリプト**: `C:\Users\Tenormusica\x-auto-posting\x_api_test.py`
+**依存**: `tweepy>=4.14.0`（インストール済み）
+**アカウント**: @SundererD27468
+**権限**: Read + Write + Direct Messages
+
+**テストコマンド:**
+```bash
+cd C:\Users\Tenormusica\x-auto-posting
+python -X utf8 x_api_test.py auth      # 認証テスト
+python -X utf8 x_api_test.py read      # 直近5件取得（インプレッション付き）
+python -X utf8 x_api_test.py metrics   # 直近10件インプレッション順ランキング
+python -X utf8 x_api_test.py post      # 投稿（確認プロンプトあり、$0.010）
+python -X utf8 x_api_test.py search    # キーワード検索
+```
+注意: Windows環境では `-X utf8` フラグ必須（絵文字のcp932エンコードエラー回避）
+
+### 公式APIの利点（非公式API/CiCとの比較）
+| 機能 | 非公式API/CiC | 公式API |
+|------|--------------|---------|
+| 投稿 | CiCで可能だがセッション競合リスク | **セッション競合なし、確実に投稿** |
+| 複数アカウント投稿 | ブラウザプロファイル切替が必要 | **トークン差し替えで即切替** |
+| インプレッション取得 | **取得不可** | **API限定データ、数値で取得可能** |
+| DM送信 | 手動のみ | **特定ユーザーへの自動送信** |
+| 安定性 | ブラウザ依存、bot検出リスク | **公式なので安定** |
+| 並列実行 | 1セッション1操作 | **スクリプトから同時実行可能** |
+| コスト | CiC無料（ただしClaude Code時間消費） | **投稿1.5円、読取0.75円** |
+
+### 活用シナリオ
+1. **ツイート投稿**: 別セッションで生成したツイート文をAPI経由で投稿（CiC不要）
+2. **インプレッション分析**: どのツイートが刺さってるかデータで把握
+3. **CiC競合回避**: 他セッションがCiC使用中でもAPI経由なら投稿可能
+4. **将来の複数アカウント運用**: OAuthトークン切替で即対応可能
+5. **DM自動送信**: 特定ユーザーへの個別DM（ユーザー指示時のみ）
+
+### tweepy使い方（スクリプトから直接呼ぶ場合）
+```python
+import tweepy
+from dotenv import load_dotenv
+import os
+
+load_dotenv(r"C:\Users\Tenormusica\x-auto-posting\.env")
+
+client = tweepy.Client(
+    bearer_token=os.getenv("X_BEARER_TOKEN"),
+    consumer_key=os.getenv("X_API_KEY"),
+    consumer_secret=os.getenv("X_API_SECRET"),
+    access_token=os.getenv("X_ACCESS_TOKEN"),
+    access_token_secret=os.getenv("X_ACCESS_SECRET"),
+)
+
+# 投稿（$0.010）
+client.create_tweet(text="ツイート内容")
+
+# 直近ツイート取得（$0.005 x N件）
+me = client.get_me()
+tweets = client.get_users_tweets(
+    id=me.data.id, max_results=5,
+    tweet_fields=["created_at", "public_metrics", "text"]
+)
+```
+
 ## 外部依存
 
 | リソース | パス | 用途 |
 |---------|------|------|
 | persona-db | `C:\Users\Tenormusica\persona-db\` | ペルソナデータ（口調・スタンス等） |
 | Vault-D AI情報 | `D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\` | AI最新ニュースソース |
+| x-auto-posting（旧版） | `C:\Users\Tenormusica\x-auto-posting\` | X API認証情報・引用RTシステム（GUI自動化） |
