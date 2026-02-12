@@ -45,11 +45,11 @@ Claude CodeのCLAUDE.mdはグローバル(~/.claude/)→プロジェクト直下
 
 ---
 
-## Tweet 5: Self-Correcting Repository（auto-memory + CLAUDE.md自己修正ループ）
+## Tweet 5: Self-Correcting Repository（プロジェクトCLAUDE.md自己修正ループ）【Politeモード】
 
-Claude Codeのauto-memoryとCLAUDE.mdを組み合わせると「リポジトリが時間とともに賢くなる」仕組みが作れる。ミスパターンを自動記録→次セッションで同じミスを自動回避→CLAUDE.mdにルール追記→リポジトリ自体が自己修正するループ
+Claude Codeのプロジェクト直下CLAUDE.mdにミスパターンを自動記録させるとリポジトリが時間とともに賢くなる仕組みが作れます。Boris Cherny方式のSelf-Correcting Repositoryです
 
-Boris Cherny方式のSelf-Correcting Repositoryと呼ばれてるやつで「自分のAIがどう育ってるか」の過程をBuild in Publicで出すと人間にしか書けないストーリーになる。AI生成コンテンツが氾濫してる中で「育成記録」は差別化として効くと思うんだよね
+表面的に真似すると発火しないことが多いのでポイントを共有します。まずグローバルCLAUDE.mdではなくプロジェクト単位のCLAUDE.mdに書くのが前提です。発火条件は「違う」「修正して」「やり直し」等の指摘キーワードを明示的に列挙しておく必要があります。記録フォーマットも「[日付] 失敗パターン: 要点 → 正しいやり方」で固定しないとClaude側が参照できません。「ミスを記録して」のような曖昧指示では発火せず「指摘を受けたら即座にこのフォーマットで追記」と具体行動で書くのが肝だと感じています
 
 引用リンク: なし（Boris Cherny方式 + 自身の運用経験）
 
