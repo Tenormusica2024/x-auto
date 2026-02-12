@@ -17,9 +17,9 @@ Claude CodeのHooksにはPreToolUse/PostToolUseっていう「ツール実行の
 
 ## Tweet 2: Skills定期実行パイプライン（SKILL.md + cron/Task Scheduler）【Politeモード】
 
-Claude Codeは.claude/skills/にSKILL.mdを置くとカスタムコマンドになります。Macならcron(またはlaunchd)でWindowsならTask Schedulerでclaude -p(非対話モード)をスケジュール登録すると毎朝自動で実行される仕組みが作れます
+Claude Codeは.claude/skills/にSKILL.mdを置くとカスタムコマンドになります。Macならcron(またはlaunchd)でWindowsならTask Schedulerでclaude -pをスケジュール登録すると毎朝自動で実行される仕組みが作れます
 
-Deep Researchは強力ですが手動実行で毎回クエリを投げる必要があります。Claude Codeのスキル定期実行なら情報収集から分析して構造化レポート生成から記事ドラフトまで全自動で毎朝回ります。Deep Research相当のリサーチを「定期スケジュールで自動実行」できるのが強みだと感じています
+話題のOpenClawはメッセージングアプリ経由の常駐型エージェントですがClaude Codeはスケジュール実行型で出力フォーマットをSKILL.mdで構造化できます。情報収集から分析して構造化レポート生成まで全自動パイプラインを組むとOpenClaw相当の自動リサーチ環境がcron一行で定期実行できます。常駐させなくても毎朝6時に勝手にレポートが生成されている状態を作れるのは便利だと感じています
 
 引用リンク: なし（自身の運用経験）
 
