@@ -17,11 +17,23 @@ Claude CodeのHooksにはPreToolUse/PostToolUseっていう「ツール実行の
 
 ## Tweet 2: Skills定期実行パイプライン（SKILL.md + cron/Task Scheduler）【Politeモード】
 
-Claude Codeは.claude/skills/にSKILL.mdを置くとカスタムコマンドになります。これをclaude -p(非対話モード)とcron(Mac/Linux)やTask Scheduler(Windows)に載せると毎朝自動で実行される仕組みが作れます
+Claude Codeは.claude/skills/にSKILL.mdを置くとカスタムコマンドになります。Macならcron(またはlaunchd)でWindowsならTask Schedulerでclaude -p(非対話モード)をスケジュール登録すると毎朝自動で実行される仕組みが作れます
 
-情報収集から分析して構造化レポートを生成し記事ドラフトまで出力する全自動パイプラインを組むと実質的にOpenClawやDeep Researchと同じような自動リサーチ環境が手元で動いている状態になります。毎朝6時に最新レポートが生成されている状態を人力ゼロで維持できるのはかなり便利だと感じています
+Deep Researchは強力ですが手動実行で毎回クエリを投げる必要があります。Claude Codeのスキル定期実行なら情報収集から分析して構造化レポート生成から記事ドラフトまで全自動で毎朝回ります。Deep Research相当のリサーチを「定期スケジュールで自動実行」できるのが強みだと感じています
 
 引用リンク: なし（自身の運用経験）
+
+### サムネイル画像プロンプト（日本アニメ風 2パターン）
+
+**パターンA: 朝の自動化（穏やかな日常系）**
+```
+Japanese anime style illustration, a young programmer sleeping peacefully in bed at dawn, warm morning sunlight through window curtains, while a glowing laptop on the desk shows a terminal with scrolling text and auto-generated reports, digital clock showing 6:00 AM, cozy room with coffee mug and tech books, soft color palette with orange sunrise tones, Studio Ghibli inspired warm atmosphere, no text overlay, 16:9 aspect ratio
+```
+
+**パターンB: 自動パイプライン（SF寄りメカニカル）**
+```
+Japanese anime style illustration, a confident young developer sitting back in chair with arms crossed and a satisfied smile, multiple holographic screens floating around showing data flows and automated pipelines, one screen shows a cron schedule another shows a structured report being generated, futuristic but clean workspace, cool blue and purple neon accents contrasting with warm desk lamp light, Makoto Shinkai inspired detailed lighting, no text overlay, 16:9 aspect ratio
+```
 
 ---
 
