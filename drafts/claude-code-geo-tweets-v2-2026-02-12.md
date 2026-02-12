@@ -13,6 +13,18 @@ Claude CodeのHooksにはPreToolUse/PostToolUseっていう「ツール実行の
 
 引用リンク: なし（自身の運用経験）
 
+### サムネイル画像プロンプト（日本アニメ風 2パターン）
+
+**パターンA: 品質ゲートの番人（ファンタジー寄り）**
+```
+Japanese anime style illustration, a young programmer at a futuristic desk, a large translucent shield barrier between the code editor and a git push button, the shield has glowing green checkmarks and red X marks floating around it, small robot sentinels inspecting code before it passes through the gate, warm lighting from monitors, cyberpunk meets cozy workspace aesthetic, vibrant colors with teal and orange accents, no text overlay, 16:9 aspect ratio
+```
+
+**パターンB: 自動品質チェック（メカニカル工場風）**
+```
+Japanese anime style illustration, a conveyor belt system in a clean high-tech factory, code files moving along the belt, robot arms with magnifying glasses inspecting each file, some files get green stamps of approval while others get redirected with red warning lights, a young developer watching from a control panel with a satisfied expression, bright industrial lighting with blue and yellow accents, Makoto Shinkai inspired clean aesthetic, no text overlay, 16:9 aspect ratio
+```
+
 ---
 
 ## Tweet 2: Skills定期実行パイプライン（SKILL.md + cron/Task Scheduler）【Politeモード】
@@ -45,6 +57,18 @@ Claude CodeのTask toolで1セッションから複数サブエージェント�
 
 引用リンク: なし（自身の運用経験）
 
+### サムネイル画像プロンプト（日本アニメ風 2パターン）
+
+**パターンA: 並列チーム（戦隊ヒーロー風）**
+```
+Japanese anime style illustration, a young developer sitting at center desk, surrounded by 5 translucent holographic AI agent avatars each doing different tasks simultaneously, one agent reads code files, another runs tests in terminal, another searches the web, another writes documentation, another reviews pull requests, energy lines connecting all agents back to the developer, dynamic composition with radial layout, vibrant purple and cyan color scheme, action manga inspired dynamic pose, no text overlay, 16:9 aspect ratio
+```
+
+**パターンB: オーケストラ指揮者（音楽メタファー）**
+```
+Japanese anime style illustration, a young developer standing like an orchestra conductor with a glowing baton, conducting multiple floating holographic screens arranged in a semicircle like orchestra sections, each screen shows a different task being executed autonomously, musical note particles flowing between screens representing data exchange, grand concert hall aesthetic mixed with futuristic tech, warm golden spotlight on the conductor, deep blue and gold color palette, Studio Ghibli inspired grandeur, no text overlay, 16:9 aspect ratio
+```
+
 ---
 
 ## Tweet 4: Context Engineering（CLAUDE.md 3階層 + auto-memory + /compact制御）
@@ -54,6 +78,18 @@ Claude CodeのCLAUDE.mdはグローバル(~/.claude/)→プロジェクト直下
 これはContext Engineeringっていう「AIの認知をファイル設計で意図的にコントロールする」上位概念だと思ってる。プロンプトエンジニアリングの次のレイヤー。この深さで構造化された解説記事はAI検索に引用されやすいしまだ書いてる人がほぼいない
 
 引用リンク: なし（自身の運用 + 概念整理）
+
+### サムネイル画像プロンプト（日本アニメ風 2パターン）
+
+**パターンA: 3層構造の塔（建築メタファー）**
+```
+Japanese anime style illustration, a mystical three-layer floating tower in a digital sky, bottom layer labeled Global glows blue, middle layer labeled Project glows green, top layer labeled Sub-directory glows gold, data streams flowing upward between layers like waterfalls in reverse, a young developer standing at the base looking up in awe, memory crystals orbiting the tower representing persistent context, dreamy cloud background with circuit board patterns, fantasy RPG meets tech aesthetic, warm magical lighting, no text overlay, 16:9 aspect ratio
+```
+
+**パターンB: 脳内マッピング（ニューラル風）**
+```
+Japanese anime style illustration, a young developer with eyes closed in meditation pose, above their head a visible neural network visualization showing three concentric rings representing context layers, innermost ring glows gold for sub-directory context, middle ring glows green for project context, outer ring glows blue for global context, memory nodes pulsing with light as information flows between layers, serene cyberpunk meditation room with floating screens, purple and teal bioluminescent accents, Ghost in the Shell inspired aesthetic, no text overlay, 16:9 aspect ratio
+```
 
 ---
 
