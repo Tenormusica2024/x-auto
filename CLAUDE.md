@@ -14,8 +14,13 @@ AIパワーユーザー・個人開発者(@sena_09_04)のX投稿を生成・レ�
 | **引用RT** | 他人のツイートへのコメント | `skills/quote-rt/PROMPT.md` | 100字以内 |
 | **Tom風** | @IT_Tom_study文体の再現 | `skills/tom-style-tweet/skill.md` | 制限なし |
 | **BIPツイート** | Build in Public系（今日やったこと・苦労・学び） | `skills/generate-tweet/PROMPT.md` | 140字以内 |
+| **短文(バズ版)** | [EXPERIMENTAL] バズ文体適用版。テスト段階 | `skills/generate-tweet-buzz/PROMPT.md` | 140字以内 |
 
 **判定に迷ったら**: 短文ツイート（generate-tweet）をデフォルトとする。
+**バズ版の発火条件**: 以下のいずれかでバズ版（generate-tweet-buzz）を使用:
+- 「バズ版で」「buzz版で」
+- 「AIBuzzExtractor版で」「これ版で」「これバージョンで」
+- ai-buzz-extractor.vercel.appのURLを直接投げてきた場合
 
 ## 共通ルール（全スキル共通・必ず参照）
 
@@ -27,6 +32,7 @@ AIパワーユーザー・個人開発者(@sena_09_04)のX投稿を生成・レ�
 | `common/anti-ai-rules.md` | AI臭い表現の禁止ルール（統合版） |
 | `common/format-rules.md` | フォーマット共通ルール（読点・絵文字・ハッシュタグ・改行等） |
 | `common/expression-rules.md` | 推奨語尾・禁止語尾・表現スタイル |
+| `common/buzz-style-reference.md` | バズ文体パターン分析（generate-tweet-buzzから参照） |
 
 **読み込み順序**: persona-ref.md -> anti-ai-rules.md -> format-rules.md -> expression-rules.md -> 各スキルPROMPT.md
 
@@ -73,11 +79,59 @@ x-auto/
 │   ├── news-freshness-checker/ # 鮮度チェック
 │   ├── parallel-news-search/   # 並列ネタ検索
 │   └── post-tweet/        # 投稿実行
-├── scripts/               # 実行スクリプト
+├── scripts/               # 分析・自動化スクリプト
+│   ├── x_client.py        # 共通モジュール（X API / Discord / Obsidian / プロフィール取得）
+│   ├── daily_metrics.py   # 日次メトリクス分析 + フォロワー追跡 + パターン分析
+│   ├── trend_detector.py  # トレンド検出 + 下書き生成 + キーパーソン蓄積
+│   ├── zeitgeist_detector.py    # AI界隈ムード検知（Groq LLM分類 → スナップショット生成）
+│   ├── buzz_tweet_extractor.py  # twscrapeバズツイート抽出（min_faves:500、zeitgeist補完用）
+│   ├── grok_video_generator.py  # Grok動画パイプラインCLI
+│   ├── grok_video_prompts.py    # 5レイヤープロンプト生成エンジン
+│   └── data/              # 蓄積データJSON群
+│       ├── metrics_history.json      # 日次メトリクス集計履歴
+│       ├── follower_history.json     # フォロワー数日次推移
+│       ├── tweet_details.json        # ツイート単位詳細（パターン分析用）
+│       ├── key_persons.json          # トピック別キーパーソン蓄積
+│       ├── zeitgeist-snapshot.json   # ムードスナップショット（ツイート生成が参照）
+│       ├── buzz-tweets-latest.json   # バズツイート抽出結果（zeitgeistが参照）
+│       ├── posting_time_reference.md # X投稿タイミング一般傾向
+│       └── grok-videos/             # Grok生成動画の保存先
 ├── history/               # 採用済みツイート履歴
-├── drafts/                # 下書き
+├── drafts/                # 下書き（trend_detectorが自動生成）
 └── logs/                  # 実行ログ
 ```
+
+## 分析スクリプト（Task Scheduler自動実行）
+
+| スクリプト | スケジュール | 機能 | コスト/回 |
+|-----------|------------|------|----------|
+| `buzz_tweet_extractor.py` | 毎日 06:30 | twscrapeでAI関連バズツイート上位100件を抽出（zeitgeist補完用） | $0.00 |
+| `zeitgeist_detector.py` | 毎日 07:00 | ツイートのムード分類 → スナップショット生成（ツイート生成トーン調整用） | $0.00 |
+| `trend_detector.py` | 毎日 06:30 | frontier reportからトピック抽出 → X検索 → 下書き生成 + キーパーソン蓄積 | ~$0.50 |
+| `daily_metrics.py` | 毎日 21:00 | imp/eng率分析 + フォロワー追跡 + パターン分析（時間帯/文字数） | ~$0.105 |
+
+**実行方法（手動）:**
+```bash
+cd C:\Users\Tenormusica\x-auto\scripts
+python -X utf8 buzz_tweet_extractor.py            # バズツイート抽出
+python -X utf8 buzz_tweet_extractor.py --dry-run  # 検索のみ（保存なし）
+python -X utf8 zeitgeist_detector.py              # ムード分析（limit=50）
+python -X utf8 zeitgeist_detector.py --dry-run    # 分析のみ（保存なし）
+python -X utf8 zeitgeist_detector.py --limit 10   # 件数指定
+python -X utf8 trend_detector.py                  # 通常実行
+python -X utf8 trend_detector.py --dry-run        # キーワード抽出のみ
+python -X utf8 daily_metrics.py                   # 直近20件分析
+python -X utf8 daily_metrics.py --count 10        # 件数指定
+```
+
+**出力先:**
+- Obsidian日報: `VaultD\...\x-analytics\daily\metrics-YYYY-MM-DD.md`
+- Obsidianトレンド: `VaultD\...\x-analytics\trends\trends-YYYY-MM-DD.md`
+- Obsidianムード: `VaultD\...\x-analytics\zeitgeist\zeitgeist-YYYY-MM-DD.md`
+- 下書き: `x-auto\drafts\trend-YYYY-MM-DD-*.md`
+- Discord: #x-trend-alerts
+
+**ロードマップ:** `D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\x-analytics\x-auto-feature-roadmap.md`
 
 ## X API Pay-Per-Use（公式API）- 積極活用推奨
 
@@ -157,6 +211,31 @@ tweets = client.get_users_tweets(
     tweet_fields=["created_at", "public_metrics", "text"]
 )
 ```
+
+## Grok動画生成パイプライン（CiC経由）
+
+Grok Imagineで動画生成→ダウンロード→Discord配信する自動化パイプライン。
+**CiCセッション（`claude --chrome`）が必須。**
+
+**スキル詳細**: `C:\Users\Tenormusica\.claude\skills\grok-video-generator\SKILL.md`
+
+| スクリプト | 役割 |
+|-----------|------|
+| `scripts/grok_video_prompts.py` | 5レイヤープロンプト生成エンジン |
+| `scripts/grok_video_generator.py` | パイプラインCLI（prompt/detect/move/discord） |
+| `scripts/x_client.py` | Discord webhook送信（`notify_discord_with_file`） |
+
+**実行方法:**
+```bash
+python -X utf8 grok_video_generator.py prompt                          # プロンプト生成
+python -X utf8 grok_video_generator.py detect --post-id <id>           # D:\Downloadsからmp4検出
+python -X utf8 grok_video_generator.py move <file_path> --name <name>  # 所定フォルダへ移動
+python -X utf8 grok_video_generator.py discord <file_path>             # Discord送信
+```
+
+**保存先**: `scripts/data/grok-videos/`
+**ダウンロード先**: `D:\Downloads`（Chrome設定固定）
+**動画仕様**: 480p (464x688), 6秒, 24FPS, 音声あり, 50本/日（Premium $8）
 
 ## 外部依存
 

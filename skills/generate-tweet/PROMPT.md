@@ -26,6 +26,24 @@ C:\Users\Tenormusica\persona-db\data\knowledge.json # 知識レベル（説明�
 ### ステップ1: 今日の日付確認
 現在の日付を確認してからネタ探しを開始。
 
+### ステップ1.5: 界隈ムードチェック（Zeitgeist Awareness）
+
+zeitgeist-snapshot.json を読み込んで日本AI界隈の空気感を確認する。
+
+**読み込み先:** `C:\Users\Tenormusica\x-auto\scripts\data\zeitgeist-snapshot.json`
+
+**ムード情報の活用:**
+1. `dominant_mood` と `secondary_mood` を確認
+2. `tone_guidance.recommended_approach` をツイートのトーン設計に適用
+3. `tone_guidance.topic_affinity` をネタ選定の優先順位に反映
+4. `tone_guidance.avoid` に該当するフレーミングを避ける
+
+**適用原則:**
+- ムードに「迎合」するのではなく、ムードを「理解した上で」発信する
+- ペルソナ（persona-db）は変えない。フレーミングだけを調整する
+- `dominant_mood.score` < 0.3 の場合はムード影響弱 → 通常通り生成
+- zeitgeist-snapshot.json が存在しない/24h以上古い場合はスキップ
+
 ### ステップ2: ネタ選定（並列検索構造）
 
 **🚀 並列検索サブエージェントで多角的にネタを探索**
