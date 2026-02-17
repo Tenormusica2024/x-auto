@@ -75,6 +75,7 @@ generate-tweetの亜種。バズ文体リファレンスを参照して文面を
 ### ステップ5〜8: 通常版と同一
 
 `skills/generate-tweet/PROMPT.md` のステップ5〜8をそのまま実行。
+（ステップ7.5のDiscord #tweet-drafts自動保存を含む）
 
 ## 備考
 

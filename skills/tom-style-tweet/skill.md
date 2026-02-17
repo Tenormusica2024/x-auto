@@ -46,6 +46,7 @@ tom-style-tweet/
    - パターン5: 情報共有型（10%）
 5. 統合品質チェックリストで確認
 6. 必要に応じて THUMBNAIL_PROMPT.md でサムネイル生成
+7. Discord #tweet-drafts 自動保存（下記セクション参照）
 ```
 
 ---
@@ -181,6 +182,25 @@ def check_duplicate(new_tweet, history):
 | AIガバナンス・規制 | AI推進法、個人情報保護、国際競争 | Lv2-4 |
 | 学習方法論 | 資格と実務、英語の重要性 | Lv2 戦略的 |
 | セルフブランディング | 発信目的、学習ログ宣言 | Lv2 戦略的 |
+
+---
+
+## Discord #tweet-drafts 自動保存（MANDATORY）
+
+**ツイート文を生成したら、ユーザーに提示すると同時にDiscord #tweet-draftsに自動保存する。**
+
+```python
+import sys
+sys.path.insert(0, r'C:\Users\Tenormusica\x-auto\scripts')
+from dotenv import load_dotenv
+load_dotenv(r'C:\Users\Tenormusica\x-auto-posting\.env')
+from x_client import notify_discord_drafts
+
+notify_discord_drafts("[ツイート本文]", label="[トピック要約]")
+```
+
+- DISCORD_WEBHOOK_URL_DRAFTS未設定時は警告を出してスキップ（フロー全体は止めない）
+- 複数案生成時は全案を個別に送信
 
 ---
 
