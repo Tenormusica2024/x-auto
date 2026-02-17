@@ -20,9 +20,10 @@ skills/like-back/
 ├── SKILL.md              # 本ファイル（スキル定義）
 ├── PROMPT.md             # CiC操作手順（実行時参照）
 ├── collect_likers.py     # API: いいねユーザー一括収集
-├── config.json           # 設定（日次上限・スキップ条件等）
+├── config.json           # 設定（日次上限・リピーターボーナス・履歴有効期間）
 ├── like_history.json     # 処理履歴
 ├── target_users.json     # collect_likers.py の出力（CiCが読む）
+├── register_task.ps1     # Task Scheduler登録スクリプト
 └── CIC_TEST_LOG.md       # テスト詳細ログ（開発参考）
 ```
 
@@ -44,10 +45,10 @@ skills/like-back/
 CiCが必須のため、完全無人の定期実行は `--chrome --dangerously-skip-permissions` が前提。
 
 ```powershell
-# Task Scheduler登録コマンド（毎日21:30 JST）
-$action = New-ScheduledTaskAction -Execute "C:\Users\Tenormusica\.bun\bin\claude.exe" -Argument '--chrome --dangerously-skip-permissions -p "x-autoのlike-backスキルを実行してください。C:\Users\Tenormusica\x-auto\skills\like-back\PROMPT.md を読んで手順に従ってください。"'
-$trigger = New-ScheduledTaskTrigger -Daily -At "21:30"
-Register-ScheduledTask -TaskName "x-auto-like-back" -Action $action -Trigger $trigger -Description "いいね2倍返し定期実行"
+# 登録済み（register_task.ps1 で実行）
+# タスク名: x-auto-like-back / 毎日21:30 JST / State: Ready
+# 再登録が必要な場合:
+powershell -ExecutionPolicy Bypass -File "C:\Users\Tenormusica\x-auto\skills\like-back\register_task.ps1"
 ```
 
 **前提条件**: Chromeが起動していてX.comにログイン済みであること。
