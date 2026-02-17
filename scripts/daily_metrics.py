@@ -14,6 +14,10 @@ Obsidian Vaultにレポートを保存する。
   python -X utf8 daily_metrics.py --count 10  # 直近10件を分析
 
 コスト: 20件取得 + プロフィール1回 = ~$0.105（約16円）
+
+content_evaluator.py と連携:
+  - tweet_details.json にツイート本文・メディア情報・重み付きスコアを蓄積
+  - content_evaluator.py がLLM分類で多次元評価を実施
 """
 
 import sys
@@ -96,6 +100,27 @@ def save_tweet_details(data: dict):
     print(f"[OK] ツイート詳細保存: {path}")
 
 
+def compute_weighted_score(
+    likes: int, retweets: int, replies: int,
+    quotes: int, bookmarks: int, impressions: int,
+) -> float:
+    """Xアルゴリズム公式重み（2025年9月公開）に基づくエンゲージメントスコア。
+    1000インプレッションあたりの「深い反応」を数値化。
+    高スコア = 会話・保存を生むコンテンツ（アルゴリズムが評価）
+    低スコア = 見られるだけで流れるコンテンツ
+    """
+    raw = (
+        likes * 0.5
+        + retweets * 1.0
+        + replies * 13.5
+        + quotes * 13.5
+        + bookmarks * 10.0
+    )
+    if impressions > 0:
+        return round(raw / impressions * 1000, 1)
+    return 0.0
+
+
 def save_tweet_details_for_analysis(metrics: list[dict]):
     """メトリクスデータをツイート詳細JSONに蓄積（重複排除）"""
     details = load_tweet_details()
@@ -111,21 +136,32 @@ def save_tweet_details_for_analysis(metrics: list[dict]):
         if t["created_at"]:
             try:
                 dt = datetime.fromisoformat(t["created_at"])
-                # JSTに変換（UTCからの場合+9時間）
                 jst_hour = (dt.hour + 9) % 24
                 hour = jst_hour
             except (ValueError, AttributeError):
                 pass
 
+        w_score = compute_weighted_score(
+            t["likes"], t["retweets"], t["replies"],
+            t.get("quotes", 0), t.get("bookmarks", 0), t["impressions"],
+        )
+
         details["tweets"].append({
             "id": t["id"],
             "date": today_str(),
+            "text": t["text"],
             "text_length": len(t["text"]),
             "hour": hour,
             "impressions": t["impressions"],
             "likes": t["likes"],
             "retweets": t["retweets"],
+            "replies": t["replies"],
+            "quotes": t.get("quotes", 0),
+            "bookmarks": t.get("bookmarks", 0),
+            "has_media": t.get("has_media", False),
+            "media_type": t.get("media_type"),
             "engagement_rate": t["engagement_rate"],
+            "weighted_score": w_score,
         })
         existing_ids.add(t["id"])
         added += 1
@@ -215,16 +251,24 @@ def analyze_patterns(details: dict) -> dict | None:
 # --- メトリクス取得 ---
 
 def fetch_metrics(client, user_id: int, count: int = 20) -> list[dict]:
-    """直近ツイートのメトリクスを取得"""
+    """直近ツイートのメトリクスを取得（bookmark/quote/media含む拡張版）"""
     tweets = client.get_users_tweets(
         id=user_id,
         max_results=min(count, 100),
-        tweet_fields=["created_at", "public_metrics", "text"],
+        tweet_fields=["created_at", "public_metrics", "text", "attachments"],
+        expansions=["attachments.media_keys"],
+        media_fields=["type"],
     )
 
     if not tweets.data:
         print("[WARN] ツイートが見つかりません")
         return []
+
+    # メディア情報をIDでルックアップできるようにする
+    media_map = {}
+    if tweets.includes and "media" in tweets.includes:
+        for m in tweets.includes["media"]:
+            media_map[m.media_key] = m.type  # photo / video / animated_gif
 
     results = []
     for tweet in tweets.data:
@@ -236,8 +280,19 @@ def fetch_metrics(client, user_id: int, count: int = 20) -> list[dict]:
         likes = m.get("like_count", 0)
         rts = m.get("retweet_count", 0)
         replies = m.get("reply_count", 0)
+        quotes = m.get("quote_count", 0)
+        bookmarks = m.get("bookmark_count", 0)
 
-        # エンゲージメント率: (いいね + RT) / インプレッション
+        # メディア情報の抽出
+        has_media = False
+        media_type = None
+        if tweet.attachments and "media_keys" in tweet.attachments:
+            media_keys = tweet.attachments["media_keys"]
+            if media_keys:
+                has_media = True
+                # 最初のメディアのタイプを採用
+                media_type = media_map.get(media_keys[0])
+
         eng_rate = ((likes + rts) / imp * 100) if imp > 0 else 0.0
 
         results.append({
@@ -248,6 +303,10 @@ def fetch_metrics(client, user_id: int, count: int = 20) -> list[dict]:
             "likes": likes,
             "retweets": rts,
             "replies": replies,
+            "quotes": quotes,
+            "bookmarks": bookmarks,
+            "has_media": has_media,
+            "media_type": media_type,
             "engagement_rate": round(eng_rate, 2),
         })
 

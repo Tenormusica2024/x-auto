@@ -1,0 +1,604 @@
+"""
+content_evaluator.py - X コンテンツ多次元評価分析
+
+ツイートをLLM（Groq）で多次元分類し、コンテンツ戦略の有効性を定量評価する。
+daily_metrics.py が蓄積した tweet_details.json を入力として使用。
+
+評価軸:
+  - content_type: コンテンツ種別（ai_news / bip / opinion / tutorial / quote_rt / engagement / other）
+  - originality: 独自性（1-5、大手インフルエンサーの二番煎じか独自知見か）
+  - media_contribution: 画像の寄与度（essential / enhancing / irrelevant / none）
+  - news_saturation: ニュース飽和度（first_mover / early / mainstream / late / rehash / n/a）
+  - bip_authenticity: BIPの真正性（1-5、具体的体験か一般論か。BIPのみ）
+  - ai_citation_value: AI引用価値（1-5、AI検索で一次ソースとして引用されるか）
+
+使い方:
+  python -X utf8 content_evaluator.py            # 未分類ツイートを評価 + レポート生成
+  python -X utf8 content_evaluator.py --dry-run  # 分類のみ（レポート・保存なし）
+  python -X utf8 content_evaluator.py --force    # 全ツイート再評価
+
+コスト: $0.00（Groq無料枠）
+"""
+
+import sys
+import os
+import json
+import asyncio
+import argparse
+import logging
+from pathlib import Path
+from datetime import datetime
+
+import httpx
+from dotenv import load_dotenv
+
+# GROQ_API_KEYを.envから読み込み（zeitgeist_detector.pyと同じ）
+load_dotenv(Path(r"C:\Users\Tenormusica\x-auto-posting\.env"))
+load_dotenv(Path(r"C:\Users\Tenormusica\Documents\ai-buzz-extractor-dev\.env"), override=False)
+load_dotenv(Path(r"C:\Users\Tenormusica\Documents\ai-buzz-extractor\.env"), override=False)
+
+sys.path.insert(0, str(Path(__file__).parent))
+from x_client import (
+    notify_discord, save_to_obsidian, today_str, now_str,
+    DATA_DIR, OBSIDIAN_BASE,
+)
+
+logger = logging.getLogger(__name__)
+
+# --- 定数 ---
+
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+OBSIDIAN_EVAL = OBSIDIAN_BASE / "evaluations"
+EVAL_PATH = DATA_DIR / "content_evaluations.json"
+
+# 1バッチあたりのツイート数（プロンプトサイズ管理）
+BATCH_SIZE = 5
+# バッチ間待機（Groq free tier RPM 30対策: 5秒 → 12 RPM safe）
+BATCH_DELAY = 5.0
+BACKOFF_SCHEDULE = [5, 15, 30, 60]
+
+CLASSIFICATION_PROMPT = """\
+あなたはX(Twitter)コンテンツ戦略の専門アナリストです。
+以下のツイートを多次元で評価してJSON配列で返してください。
+
+## 評価軸の定義
+
+### content_type（コンテンツ種別）
+- "ai_news": AIやテクノロジーのニュース・速報・新サービス紹介
+- "bip": Build in Public（開発過程・作業ログ・進捗報告・個人開発）
+- "opinion": 意見・考察・ポエム・業界への見解
+- "tutorial": 使い方・ハウツー・Tips共有
+- "quote_rt": 他人のツイートへのコメント・引用
+- "engagement": 挨拶・お礼・日常会話・交流目的
+- "other": 上記に該当しないもの
+
+### originality（独自性 1-5）
+1: 他人の情報をほぼそのまま転載・翻訳しただけ
+2: 既知の情報に最小限のコメントを追加
+3: 既知の情報に自分なりの分析・視点を追加
+4: 独自の体験・データ・洞察が主体
+5: 完全にオリジナルな知見・発見・体験
+
+### media_contribution（画像の寄与度）
+- "essential": 画像がコンテンツの本体（画像なしでは意味が通じない）
+- "enhancing": 画像がテキストを補強（注目度アップ）
+- "irrelevant": 画像とテキストの関連が薄い（アイキャッチ目的のみ）
+- "none": 画像なし
+
+### news_saturation（ニュース飽和度 - ai_newsの場合のみ）
+- "first_mover": 日本語圏で最初期に取り上げた（発表から数時間以内）
+- "early": 早めだが既に何人かが言及済み（12時間以内）
+- "mainstream": 多くのアカウントが既に取り上げている
+- "late": 話題が一巡した後
+- "rehash": 大手インフルエンサーが既に詳しく解説済みの内容を後追い
+- "n/a": ニュース系ではない
+
+### bip_authenticity（BIPの真正性 1-5 - bipの場合のみ）
+1: AIが書いたような一般論・抽象的な「やってます」報告
+2: 具体性はあるが表面的（ツール名を挙げただけ等）
+3: 具体的な作業内容があるが数字・成果がない
+4: 具体的な体験・苦労・発見が含まれる
+5: 数字・スクショ・具体的成果と率直な所感がある
+
+### ai_citation_value（AI引用価値 1-5）
+AI検索（ChatGPT、Perplexity等）がこのツイートを一次ソースとして引用する可能性。
+1: 引用価値なし（一般的な感想・挨拶）
+2: 低い（ニュースの要約だが独自情報なし）
+3: 中程度（独自の使用感やTipsが含まれる）
+4: 高い（具体的なデータ・比較・検証結果がある）
+5: 非常に高い（他にない一次情報・独自検証・専門的分析）
+
+## ツイート一覧
+
+{tweets_block}
+
+## 出力形式
+JSON配列で返してください。各要素に tweet_index（0始まり）を含めてください。
+bipではないツイートの bip_authenticity は null にしてください。
+ai_newsではないツイートの news_saturation は "n/a" にしてください。
+
+```json
+[
+  {{
+    "tweet_index": 0,
+    "content_type": "ai_news",
+    "originality": 3,
+    "media_contribution": "none",
+    "news_saturation": "early",
+    "bip_authenticity": null,
+    "ai_citation_value": 2
+  }}
+]
+```"""
+
+
+# --- データI/O ---
+
+def load_tweet_details() -> dict:
+    """tweet_details.json を読み込み"""
+    path = DATA_DIR / "tweet_details.json"
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))
+    return {"tweets": [], "last_updated": ""}
+
+
+def load_evaluations() -> dict:
+    """content_evaluations.json を読み込み"""
+    if EVAL_PATH.exists():
+        return json.loads(EVAL_PATH.read_text(encoding="utf-8"))
+    return {"evaluations": {}, "last_updated": ""}
+
+
+def save_evaluations(data: dict):
+    """content_evaluations.json を保存"""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    EVAL_PATH.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(f"[OK] 評価データ保存: {EVAL_PATH}")
+
+
+# --- Groq LLM 分類 ---
+
+async def classify_tweets(
+    tweets: list[dict], api_key: str
+) -> list[dict]:
+    """ツイート群をGroq LLMでバッチ分類"""
+    results = []
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        for batch_start in range(0, len(tweets), BATCH_SIZE):
+            batch = tweets[batch_start : batch_start + BATCH_SIZE]
+            batch_results = await _classify_batch(client, batch, api_key)
+            results.extend(batch_results)
+
+            # バッチ間待機
+            if batch_start + BATCH_SIZE < len(tweets):
+                print(f"  [WAIT] {BATCH_DELAY}秒待機（rate limit対策）...")
+                await asyncio.sleep(BATCH_DELAY)
+
+            print(f"  [PROGRESS] {min(batch_start + BATCH_SIZE, len(tweets))}/{len(tweets)} 完了")
+
+    return results
+
+
+async def _classify_batch(
+    client: httpx.AsyncClient,
+    tweets: list[dict],
+    api_key: str,
+) -> list[dict]:
+    """1バッチ（最大5ツイート）をGroqで分類"""
+    # プロンプト組み立て
+    tweets_block = ""
+    for i, t in enumerate(tweets):
+        media_info = f"画像: {t.get('media_type', 'なし')}" if t.get("has_media") else "画像: なし"
+        tweets_block += f"### ツイート {i}（{media_info}）\n{t.get('text', '')}\n\n"
+
+    prompt = CLASSIFICATION_PROMPT.format(tweets_block=tweets_block)
+
+    # Groq API呼び出し（リトライ付き）
+    for attempt in range(4):
+        try:
+            response = await client.post(
+                GROQ_API_URL,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": GROQ_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                    "max_tokens": 1500,
+                },
+            )
+            response.raise_for_status()
+            result = response.json()
+            content = result["choices"][0]["message"]["content"].strip()
+
+            # JSON抽出（```json ... ``` 対応）
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+
+            parsed = json.loads(content)
+
+            # tweet_idを付与して返す
+            for item in parsed:
+                idx = item.get("tweet_index", 0)
+                if 0 <= idx < len(tweets):
+                    item["tweet_id"] = tweets[idx]["id"]
+                    item["evaluated_at"] = datetime.now().isoformat()
+            return parsed
+
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                wait = BACKOFF_SCHEDULE[min(attempt, len(BACKOFF_SCHEDULE) - 1)]
+                retry_after = e.response.headers.get("retry-after")
+                if retry_after:
+                    try:
+                        wait = float(retry_after) + 1
+                    except ValueError:
+                        pass
+                print(f"  [WARN] Rate limited (429), {wait}秒後にリトライ...")
+                await asyncio.sleep(wait)
+                continue
+            logger.error(f"HTTP error ({e.response.status_code}): {e}")
+            break
+
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error: {e}")
+            logger.error(f"Raw content: {content[:200]}")
+            break
+
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            break
+
+    # 失敗時はデフォルト値
+    print(f"  [WARN] バッチ分類失敗。デフォルト値を使用")
+    return [
+        {
+            "tweet_id": t["id"],
+            "content_type": "other",
+            "originality": 3,
+            "media_contribution": "none" if not t.get("has_media") else "enhancing",
+            "news_saturation": "n/a",
+            "bip_authenticity": None,
+            "ai_citation_value": 2,
+            "evaluated_at": datetime.now().isoformat(),
+        }
+        for t in tweets
+    ]
+
+
+# --- 分析関数群 ---
+
+def analyze_by_content_type(tweets: list[dict], evals: dict) -> dict:
+    """コンテンツタイプ別パフォーマンス分析"""
+    type_data = {}
+    for t in tweets:
+        ev = evals.get(t["id"])
+        if not ev:
+            continue
+        ct = ev["content_type"]
+        if ct not in type_data:
+            type_data[ct] = {"impressions": [], "eng_rates": [], "w_scores": [], "count": 0}
+        type_data[ct]["impressions"].append(t.get("impressions", 0))
+        type_data[ct]["eng_rates"].append(t.get("engagement_rate", 0))
+        type_data[ct]["w_scores"].append(t.get("weighted_score", 0))
+        type_data[ct]["count"] += 1
+
+    result = {}
+    for ct, data in type_data.items():
+        n = data["count"]
+        result[ct] = {
+            "count": n,
+            "avg_imp": round(sum(data["impressions"]) / n) if n else 0,
+            "avg_eng": round(sum(data["eng_rates"]) / n, 2) if n else 0,
+            "avg_w_score": round(sum(data["w_scores"]) / n, 1) if n else 0,
+        }
+    return result
+
+
+def analyze_media_effect(tweets: list[dict], evals: dict) -> dict:
+    """画像効果の分離分析"""
+    groups = {"with_media": [], "without_media": []}
+    contribution_data = {}
+
+    for t in tweets:
+        ev = evals.get(t["id"])
+        if not ev:
+            continue
+        key = "with_media" if t.get("has_media") else "without_media"
+        groups[key].append(t)
+
+        mc = ev.get("media_contribution", "none")
+        if mc not in contribution_data:
+            contribution_data[mc] = {"impressions": [], "w_scores": []}
+        contribution_data[mc]["impressions"].append(t.get("impressions", 0))
+        contribution_data[mc]["w_scores"].append(t.get("weighted_score", 0))
+
+    result = {}
+    for key, tlist in groups.items():
+        n = len(tlist)
+        if n:
+            result[key] = {
+                "count": n,
+                "avg_imp": round(sum(t.get("impressions", 0) for t in tlist) / n),
+                "avg_w_score": round(
+                    sum(t.get("weighted_score", 0) for t in tlist) / n, 1
+                ),
+            }
+
+    result["by_contribution"] = {}
+    for mc, data in contribution_data.items():
+        n = len(data["impressions"])
+        if n:
+            result["by_contribution"][mc] = {
+                "count": n,
+                "avg_imp": round(sum(data["impressions"]) / n),
+                "avg_w_score": round(sum(data["w_scores"]) / n, 1),
+            }
+    return result
+
+
+def analyze_originality(tweets: list[dict], evals: dict) -> dict:
+    """独自性スコア × パフォーマンス分析"""
+    score_data = {}
+    for t in tweets:
+        ev = evals.get(t["id"])
+        if not ev:
+            continue
+        orig = ev.get("originality", 3)
+        if orig not in score_data:
+            score_data[orig] = {"impressions": [], "w_scores": []}
+        score_data[orig]["impressions"].append(t.get("impressions", 0))
+        score_data[orig]["w_scores"].append(t.get("weighted_score", 0))
+
+    result = {}
+    for score, data in sorted(score_data.items()):
+        n = len(data["impressions"])
+        result[score] = {
+            "count": n,
+            "avg_imp": round(sum(data["impressions"]) / n) if n else 0,
+            "avg_w_score": round(sum(data["w_scores"]) / n, 1) if n else 0,
+        }
+    return result
+
+
+def analyze_news_saturation(tweets: list[dict], evals: dict) -> dict:
+    """ニュース飽和度 × パフォーマンス分析"""
+    sat_data = {}
+    for t in tweets:
+        ev = evals.get(t["id"])
+        if not ev:
+            continue
+        sat = ev.get("news_saturation", "n/a")
+        if sat == "n/a":
+            continue
+        if sat not in sat_data:
+            sat_data[sat] = {"impressions": [], "w_scores": []}
+        sat_data[sat]["impressions"].append(t.get("impressions", 0))
+        sat_data[sat]["w_scores"].append(t.get("weighted_score", 0))
+
+    # 飽和度順にソート
+    order = ["first_mover", "early", "mainstream", "late", "rehash"]
+    result = {}
+    for sat in order:
+        if sat in sat_data:
+            data = sat_data[sat]
+            n = len(data["impressions"])
+            result[sat] = {
+                "count": n,
+                "avg_imp": round(sum(data["impressions"]) / n) if n else 0,
+                "avg_w_score": round(sum(data["w_scores"]) / n, 1) if n else 0,
+            }
+    return result
+
+
+# --- レポート生成 ---
+
+def generate_eval_report(
+    tweets: list[dict],
+    evals: dict,
+    type_analysis: dict,
+    media_analysis: dict,
+    orig_analysis: dict,
+    sat_analysis: dict,
+) -> str:
+    """Obsidian用の評価レポートMarkdownを生成"""
+    evaluated_tweets = [t for t in tweets if t["id"] in evals]
+    n = len(evaluated_tweets)
+
+    # 最高/最低 weighted_score
+    best = max(evaluated_tweets, key=lambda t: t.get("weighted_score", 0)) if evaluated_tweets else None
+    worst = min(evaluated_tweets, key=lambda t: t.get("weighted_score", 0)) if evaluated_tweets else None
+
+    report = f"""# コンテンツ評価レポート - {today_str()}
+
+生成時刻: {now_str()}
+分析対象: {n}件
+
+## 戦略サマリー
+"""
+    if best:
+        preview = best.get("text", "")[:50].replace("\n", " ")
+        report += f"- 最高W-Score: {best.get('weighted_score', 0)} — {preview}...\n"
+    if worst:
+        preview = worst.get("text", "")[:50].replace("\n", " ")
+        report += f"- 最低W-Score: {worst.get('weighted_score', 0)} — {preview}...\n"
+
+    # コンテンツタイプ別
+    if type_analysis:
+        report += "\n## コンテンツタイプ別成績\n\n"
+        report += "| タイプ | 件数 | 平均imp | 平均eng率 | 平均W-Score |\n"
+        report += "|--------|------|---------|-----------|-------------|\n"
+        for ct in sorted(type_analysis, key=lambda k: type_analysis[k]["avg_w_score"], reverse=True):
+            d = type_analysis[ct]
+            report += f"| {ct} | {d['count']} | {d['avg_imp']:,} | {d['avg_eng']:.1f}% | {d['avg_w_score']} |\n"
+
+    # 画像効果
+    if media_analysis:
+        report += "\n## 画像効果分析\n\n"
+        report += "| 画像有無 | 件数 | 平均imp | 平均W-Score |\n"
+        report += "|----------|------|---------|-------------|\n"
+        for key in ["with_media", "without_media"]:
+            if key in media_analysis:
+                d = media_analysis[key]
+                label = "画像あり" if key == "with_media" else "画像なし"
+                report += f"| {label} | {d['count']} | {d['avg_imp']:,} | {d['avg_w_score']} |\n"
+
+        if media_analysis.get("by_contribution"):
+            report += "\n### 画像寄与度別\n\n"
+            report += "| 寄与度 | 件数 | 平均imp | 平均W-Score |\n"
+            report += "|--------|------|---------|-------------|\n"
+            for mc, d in media_analysis["by_contribution"].items():
+                report += f"| {mc} | {d['count']} | {d['avg_imp']:,} | {d['avg_w_score']} |\n"
+
+    # 独自性
+    if orig_analysis:
+        report += "\n## 独自性スコア分布\n\n"
+        report += "| 独自性 | 件数 | 平均imp | 平均W-Score |\n"
+        report += "|--------|------|---------|-------------|\n"
+        for score, d in orig_analysis.items():
+            report += f"| {score}/5 | {d['count']} | {d['avg_imp']:,} | {d['avg_w_score']} |\n"
+
+    # ニュース飽和度
+    if sat_analysis:
+        report += "\n## ニュース飽和度分析\n\n"
+        report += "| 飽和度 | 件数 | 平均imp | 平均W-Score |\n"
+        report += "|--------|------|---------|-------------|\n"
+        for sat, d in sat_analysis.items():
+            report += f"| {sat} | {d['count']} | {d['avg_imp']:,} | {d['avg_w_score']} |\n"
+
+    # 個別ツイート評価一覧
+    report += "\n## 個別ツイート評価\n\n"
+    for t in sorted(evaluated_tweets, key=lambda x: x.get("weighted_score", 0), reverse=True):
+        ev = evals[t["id"]]
+        preview = t.get("text", "")[:60].replace("\n", " ")
+        report += f"- **W:{t.get('weighted_score', 0)}** | {ev['content_type']} | "
+        report += f"独自性:{ev.get('originality', '?')} | "
+        if ev.get("news_saturation") and ev["news_saturation"] != "n/a":
+            report += f"飽和:{ev['news_saturation']} | "
+        if ev.get("bip_authenticity") is not None:
+            report += f"BIP真正:{ev['bip_authenticity']} | "
+        report += f"AI引用:{ev.get('ai_citation_value', '?')}\n"
+        report += f"  {preview}...\n\n"
+
+    return report
+
+
+# --- メイン ---
+
+async def async_main(args):
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        print("[ERROR] GROQ_API_KEY が環境変数に未設定")
+        sys.exit(1)
+
+    print("=== コンテンツ評価分析 ===")
+
+    # ツイート詳細読み込み
+    details = load_tweet_details()
+    # textフィールドがあるツイートのみ対象（Phase 1拡充後のデータ）
+    all_tweets = [t for t in details["tweets"] if t.get("text")]
+    print(f"[INFO] text付きツイート: {len(all_tweets)}件 / 全{len(details['tweets'])}件")
+
+    if not all_tweets:
+        print("[WARN] 評価対象のツイートがありません")
+        print("[HINT] daily_metrics.py を実行してデータを蓄積してください")
+        return
+
+    # 既存評価読み込み
+    eval_data = load_evaluations()
+    evaluated_ids = set(eval_data["evaluations"].keys())
+
+    # 未分類ツイート抽出
+    if args.force:
+        target_tweets = all_tweets
+        print(f"[INFO] --force: 全{len(target_tweets)}件を再評価")
+    else:
+        target_tweets = [t for t in all_tweets if t["id"] not in evaluated_ids]
+        print(f"[INFO] 未分類: {len(target_tweets)}件（既分類: {len(evaluated_ids)}件）")
+
+    # LLM分類実行
+    if target_tweets:
+        print(f"\n[1/3] Groq LLM 分類中...")
+        classifications = await classify_tweets(target_tweets, api_key)
+
+        # 評価結果をマージ
+        for cls in classifications:
+            tid = cls.get("tweet_id")
+            if tid:
+                eval_data["evaluations"][tid] = {
+                    k: v for k, v in cls.items() if k != "tweet_index"
+                }
+        eval_data["last_updated"] = now_str()
+
+        if not args.dry_run:
+            save_evaluations(eval_data)
+        else:
+            print("[DRY-RUN] 評価データ保存スキップ")
+            # dry-runでも分類結果を表示
+            for cls in classifications:
+                tid = cls.get("tweet_id", "?")
+                ct = cls.get("content_type", "?")
+                orig = cls.get("originality", "?")
+                print(f"  {tid[:12]}... → {ct} | 独自性:{orig}")
+    else:
+        print("[INFO] 新規分類対象なし")
+
+    # 分析実行
+    print(f"\n[2/3] 多次元分析...")
+    evals = eval_data["evaluations"]
+    type_analysis = analyze_by_content_type(all_tweets, evals)
+    media_analysis = analyze_media_effect(all_tweets, evals)
+    orig_analysis = analyze_originality(all_tweets, evals)
+    sat_analysis = analyze_news_saturation(all_tweets, evals)
+
+    # レポート生成
+    print(f"\n[3/3] レポート生成...")
+    report = generate_eval_report(
+        all_tweets, evals,
+        type_analysis, media_analysis, orig_analysis, sat_analysis,
+    )
+
+    if not args.dry_run:
+        filename = f"eval-{today_str()}.md"
+        save_to_obsidian(OBSIDIAN_EVAL, filename, report)
+
+        # Discord通知
+        summary_lines = []
+        for ct in sorted(type_analysis, key=lambda k: type_analysis[k]["avg_w_score"], reverse=True)[:3]:
+            d = type_analysis[ct]
+            summary_lines.append(f"{ct}: W-Score {d['avg_w_score']} ({d['count']}件)")
+
+        notify_discord(
+            f"**Content Evaluation** {today_str()}\n\n"
+            f"評価: {len(evals)}件\n"
+            + "\n".join(summary_lines)
+        )
+    else:
+        print("\n--- レポートプレビュー ---")
+        print(report[:1000])
+        if len(report) > 1000:
+            print(f"\n... ({len(report)}文字)")
+
+    print(f"\n=== 完了 ===")
+    print(f"評価済み: {len(evals)}件")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="X コンテンツ多次元評価分析")
+    parser.add_argument("--dry-run", action="store_true", help="分類のみ（保存・レポートなし）")
+    parser.add_argument("--force", action="store_true", help="全ツイート再評価")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    asyncio.run(async_main(args))
+
+
+if __name__ == "__main__":
+    main()
