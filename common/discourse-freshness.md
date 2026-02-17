@@ -108,10 +108,12 @@
 - ユーザーから「これ古い」「今はこうだよ」等の鮮度フィードバックを受けた場合、即座にマップを更新する
 - Phase 2のGrok API結果で新しい段階を発見した場合も追記する
 
-### 自動更新（定期実行 - 設計中）
-- Discord #en-buzz-tweets の最新バッチを定期的に読み取り、議論の進行を検知
-- Grok APIで主要論点の現在地を確認
-- 更新間隔: 週1回程度（議論の進行は日単位では変わりにくい）
+### 自動更新（Task Scheduler: 毎週日曜 20:00 JST）
+- **スキル**: `C:\Users\Tenormusica\.claude\skills\discourse-freshness-updater\SKILL.md`
+- **バッチ**: `run_discourse_freshness_updater.bat`（`claude -p` でヘッドレス実行）
+- **処理**: Grok APIで英語/日本語の直近議論を調査 → 段階変更を検知 → ファイル更新 → git push → Discord通知
+- **コスト**: 約5-7円/回（Grok API 7クエリ）、月約20-30円
+- **Discord #en-buzz-tweets補完**: CiCセッション時にのみ手動で参照（Bot Token化で自動読み取り可能だが未実装）
 
 ### 更新時の注意
 - [消化済]に降格した論点を削除しない（「なぜ古いか」の根拠として残す）

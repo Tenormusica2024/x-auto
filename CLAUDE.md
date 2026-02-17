@@ -165,6 +165,7 @@ x-auto/
 | `zeitgeist_detector.py` | 毎日 07:00 | ツイートのムード分類 → スナップショット生成（ツイート生成トーン調整用） | $0.00 |
 | `trend_detector.py` | 毎日 06:30 | frontier reportからトピック抽出 → X検索 → 下書き生成 + キーパーソン蓄積 + username自動解決 + GC | ~$0.53 |
 | `daily_metrics.py` | 毎日 21:00 | imp/eng率分析 + フォロワー追跡 + パターン分析（時間帯/文字数） | ~$0.105 |
+| `discourse-freshness-updater` | 毎週日曜 20:00 | Grok APIで議論進行度マップ（discourse-freshness.md）を自動更新 | ~5-7円 |
 
 **実行方法（手動）:**
 ```bash
