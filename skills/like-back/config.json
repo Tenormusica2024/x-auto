@@ -4,6 +4,6 @@
   "repeater_bonus": 1,
   "tweet_check_count": 5,
   "history_expiry_days": 7,
-  "enable_new_follower_likes": true,
+  "enable_new_follower_likes": false,
   "new_follower_likes": 1
 }

@@ -127,8 +127,35 @@ def save_tweet_details_for_analysis(metrics: list[dict]):
     existing_ids = {t["id"] for t in details["tweets"]}
 
     added = 0
+    updated = 0
+    # 既存エントリのID→インデックスマップ（新フィールド補完用）
+    id_to_idx = {t["id"]: i for i, t in enumerate(details["tweets"])}
+
     for t in metrics:
         if t["id"] in existing_ids:
+            # 既存エントリにtextフィールドがなければ新フォーマットで上書き
+            idx = id_to_idx.get(t["id"])
+            if idx is not None and "text" not in details["tweets"][idx]:
+                old = details["tweets"][idx]
+                w_score = compute_weighted_score(
+                    t["likes"], t["retweets"], t["replies"],
+                    t.get("quotes", 0), t.get("bookmarks", 0), t["impressions"],
+                )
+                old.update({
+                    "text": t["text"],
+                    "replies": t["replies"],
+                    "quotes": t.get("quotes", 0),
+                    "bookmarks": t.get("bookmarks", 0),
+                    "has_media": t.get("has_media", False),
+                    "media_type": t.get("media_type"),
+                    "weighted_score": w_score,
+                    # impressions/likes/retweetsも最新値で更新
+                    "impressions": t["impressions"],
+                    "likes": t["likes"],
+                    "retweets": t["retweets"],
+                    "engagement_rate": t["engagement_rate"],
+                })
+                updated += 1
             continue
 
         # 投稿時間帯を抽出（JST = UTC+9）
@@ -168,7 +195,10 @@ def save_tweet_details_for_analysis(metrics: list[dict]):
 
     details["last_updated"] = now_str()
     save_tweet_details(details)
-    print(f"[OK] ツイート詳細: {added}件追加（合計{len(details['tweets'])}件）")
+    if updated:
+        print(f"[OK] ツイート詳細: {added}件追加、{updated}件更新（合計{len(details['tweets'])}件）")
+    else:
+        print(f"[OK] ツイート詳細: {added}件追加（合計{len(details['tweets'])}件）")
 
 
 # --- パターン分析 ---

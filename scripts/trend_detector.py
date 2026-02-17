@@ -107,7 +107,7 @@ def _clean_topic_for_search(raw_topic: str) -> str:
     return short if len(short) >= 2 else ""
 
 
-def search_x_for_topic(client, query: str, max_results: int = 10) -> dict:
+def search_x_for_topic(client, query: str, max_results: int = 3) -> dict:
     """
     X Search APIでトピックの盛り上がりを計測。
     直近のツイートを検索し、ヒートスコアを計算する。
