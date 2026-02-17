@@ -15,6 +15,7 @@ import json
 import sys
 import time
 import argparse
+import tweepy
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -29,8 +30,8 @@ HISTORY_FILE = SKILL_DIR / "like_history.json"
 CONFIG_FILE = SKILL_DIR / "config.json"
 MY_USER_ID = "1805557649876172801"  # @SundererD27468
 
-# --- 履歴の有効期間（この日数以内に処理済みならスキップ） ---
-HISTORY_EXPIRY_DAYS = 7
+# --- 履歴の有効期間デフォルト値（config.jsonで上書き可能） ---
+DEFAULT_HISTORY_EXPIRY_DAYS = 7
 
 
 def load_config() -> dict:
@@ -57,7 +58,6 @@ def save_history(history: dict) -> None:
 
 def api_call_with_retry(func, *args, max_retries=1, **kwargs):
     """API呼び出しのリトライラッパー。rate limit時は60秒待って1回リトライ。"""
-    import tweepy
     for attempt in range(max_retries + 1):
         try:
             return func(*args, **kwargs)
@@ -135,10 +135,10 @@ def get_liking_users(client, tweet_id: str) -> list[dict]:
     return users
 
 
-def filter_by_history(users: list[dict], history: dict) -> tuple[list[dict], list[dict]]:
+def filter_by_history(users: list[dict], history: dict, expiry_days: int = DEFAULT_HISTORY_EXPIRY_DAYS) -> tuple[list[dict], list[dict]]:
     """履歴と照合して未処理/処理済みに分ける"""
     now = datetime.now(JST)
-    expiry_threshold = now - timedelta(days=HISTORY_EXPIRY_DAYS)
+    expiry_threshold = now - timedelta(days=expiry_days)
 
     new_users = []
     skipped_users = []
@@ -170,6 +170,7 @@ def main():
     daily_limit = config.get("daily_like_limit", 20)
     likes_per_user = config.get("likes_per_user", 2)
     repeater_bonus = config.get("repeater_bonus", 1)
+    history_expiry_days = config.get("history_expiry_days", DEFAULT_HISTORY_EXPIRY_DAYS)
 
     # --- ステップ1: 最新ツイート取得 ---
     print(f"[1/3] 最新ツイート取得中（上位{args.count}件、いいね1件以上）...")
@@ -203,7 +204,7 @@ def main():
     # --- ステップ3: 履歴差分算出 ---
     print(f"\n[3/3] 履歴照合中...")
     user_list = list(all_users.values())
-    new_users, skipped_users = filter_by_history(user_list, history)
+    new_users, skipped_users = filter_by_history(user_list, history, expiry_days=history_expiry_days)
 
     print(f"  新規（未処理）: {len(new_users)}人")
     print(f"  スキップ（処理済み）: {len(skipped_users)}人")

@@ -120,7 +120,7 @@
 | 3 | @tofu_D_kozo | 786 | 個人開発者 | Googleサイトエクスポート + Firebase引用RT |
 | 4 | @seckey_101296 | 630 | AIコンサルタント | AI時代記事 + 他人への期待引用RT |
 | 5 | @orion_ai_m | 33 | フォロー中 | gogcli + treeコマンド |
-| 6 | @hattatsu0930 | 288 | リポスト中心 | フルエレRT + びねつRT |
+| 6 | @hattatsu0930 | 288 | リポスト中心 | フルエレRT + びねつRT (NG: リポストいいね) |
 | 7 | @popo_fukugyo | 866 | AI副業 | 出社ツイート + AI回答方法 |
 | 8 | @yoppy0123 | 1,467 | VPoE、Claude Code系 | 生成AI組織活用 + Cloudflare記事 |
 | 9 | @Lovanaut | 24 | 個人開発(lovai.app) | AIの使い方 + 文脈SNS |
