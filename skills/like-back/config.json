@@ -3,5 +3,7 @@
   "likes_per_user": 2,
   "repeater_bonus": 1,
   "tweet_check_count": 5,
-  "history_expiry_days": 7
+  "history_expiry_days": 7,
+  "enable_new_follower_likes": true,
+  "new_follower_likes": 1
 }
