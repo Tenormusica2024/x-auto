@@ -35,7 +35,8 @@ python collect_likers.py
 5. click(ref_1)
 6. click(ref_2)
 7. likes_count が 3 なら click(ref_3) も実行
-8. 次のユーザーへ
+8. ★ like_history.json にこのユーザーを即座に追記（フェーズ4参照）
+9. 次のユーザーへ
 ```
 
 #### CiC操作の注意点（テスト実証済み）
@@ -49,8 +50,16 @@ python collect_likers.py
 - **リポスト中心アカウント**: オリジナルツイートが見つかるまでスクロール（最大5回）。なければそのユーザーはスキップし、次のユーザーへ進む
 - **スクショ検証**: 毎ユーザーでは不要。最初と最後の確認で十分
 
-### フェーズ4: 履歴更新
-全ユーザーの処理が完了したら `like_history.json` を更新する。
+### フェーズ4: 履歴更新（1ユーザーごとに即座実行）
+
+**二重いいね防止のため、全員完了後ではなく1ユーザー処理するごとに即座に `like_history.json` を更新する。**
+途中でセッションが落ちても、処理済みユーザーが次回再処理されることを防ぐ。
+
+各ユーザーのいいねクリック完了直後に、以下の手順で更新:
+1. `like_history.json` を Read で読む
+2. 該当ユーザーの `processed` エントリを追加/更新
+3. `last_run` を現在時刻に更新
+4. Write で保存
 
 ```json
 {
@@ -64,6 +73,8 @@ python collect_likers.py
   }
 }
 ```
+
+**スキップしたユーザーも記録する**: リポスト中心でオリジナルが見つからずスキップした場合も、`liked_count: 0` で記録し、次回の重複チェック対象に含める。
 
 ### フェーズ5: 結果報告
 処理結果をユーザーに報告:
@@ -89,3 +100,9 @@ python collect_likers.py
 - 非公開アカウントは `collect_likers.py` が自動除外
 - いいね済みのツイートは再度いいねしない（find結果で自動判定）
 - rate limit発生時は1分待って再試行
+
+## 二重いいね防止（CRITICAL）
+- `like_history.json` は1ユーザー処理ごとに即座更新（フェーズ4参照）
+- `collect_likers.py` は履歴にあるユーザーを自動除外（`history_expiry_days` 以内）
+- CiC実行開始前に `target_users.json` のユーザーが `like_history.json` に既に存在しないか再確認する
+- 不安な場合はフェーズ1の `collect_likers.py` を `--dry-run` で先に確認

@@ -39,7 +39,21 @@ skills/like-back/
 "C:\Users\Tenormusica\.bun\bin\claude.exe" --chrome --dangerously-skip-permissions -p "x-autoのlike-backスキルを実行してください。C:\Users\Tenormusica\x-auto\skills\like-back\PROMPT.md を読んで手順に従ってください。"
 ```
 
+## 定期実行（Task Scheduler）
+
+CiCが必須のため、完全無人の定期実行は `--chrome --dangerously-skip-permissions` が前提。
+
+```powershell
+# Task Scheduler登録コマンド（毎日21:30 JST）
+$action = New-ScheduledTaskAction -Execute "C:\Users\Tenormusica\.bun\bin\claude.exe" -Argument '--chrome --dangerously-skip-permissions -p "x-autoのlike-backスキルを実行してください。C:\Users\Tenormusica\x-auto\skills\like-back\PROMPT.md を読んで手順に従ってください。"'
+$trigger = New-ScheduledTaskTrigger -Daily -At "21:30"
+Register-ScheduledTask -TaskName "x-auto-like-back" -Action $action -Trigger $trigger -Description "いいね2倍返し定期実行"
+```
+
+**前提条件**: Chromeが起動していてX.comにログイン済みであること。
+**推奨時間帯**: 21:00-22:00（daily_metrics実行後、1日のツイート活動が落ち着いた頃）
+
 ## コスト
 - API（データ収集）: ~$0.03/回（ツイート取得 + liking_users 5回）
 - CiC（いいね実行）: $0.00（ブラウザ操作のため無料）
-- Claude Code時間: 約10-15分/回（10ユーザー処理時）
+- Claude Code時間: 約5-10分/回（10ユーザー処理時）
