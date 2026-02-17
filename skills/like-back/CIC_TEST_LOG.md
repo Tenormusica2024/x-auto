@@ -103,7 +103,7 @@
 
 ```
 1. navigate("https://x.com/{username}")
-2. scroll(down, 3-5)  # プロフィール情報を飛ばす
+2. scroll(down, 5)  # プロフィール情報を飛ばす
 3. find("いいねする button")
 4. 戻り値から「いいねする」（未いいね）のref IDを2つ選択
 5. click(ref_xxx)

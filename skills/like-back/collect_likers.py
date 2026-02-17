@@ -13,6 +13,7 @@ like_history.jsonと照合して未処理ユーザーリストを出力する。
 
 import json
 import sys
+import time
 import argparse
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -54,15 +55,41 @@ def save_history(history: dict) -> None:
     )
 
 
+def api_call_with_retry(func, *args, max_retries=1, **kwargs):
+    """API呼び出しのリトライラッパー。rate limit時は60秒待って1回リトライ。"""
+    import tweepy
+    for attempt in range(max_retries + 1):
+        try:
+            return func(*args, **kwargs)
+        except tweepy.errors.TooManyRequests:
+            if attempt < max_retries:
+                print(f"  [!] Rate limit到達。60秒待機後にリトライ...")
+                time.sleep(60)
+            else:
+                print(f"  [ERROR] Rate limit: リトライ上限到達。スキップします")
+                return None
+        except tweepy.errors.Forbidden as e:
+            print(f"  [ERROR] 403 Forbidden: {e}")
+            return None
+        except tweepy.errors.TwitterServerError as e:
+            if attempt < max_retries:
+                print(f"  [!] サーバーエラー({e})。30秒待機後にリトライ...")
+                time.sleep(30)
+            else:
+                print(f"  [ERROR] サーバーエラー: リトライ上限到達。スキップします")
+                return None
+
+
 def get_recent_tweets(client, user_id: str, count: int = 5) -> list[dict]:
     """自分の最新ツイート（リツイート除外）を取得。いいね1件以上のもののみ返す。"""
-    resp = client.get_users_tweets(
+    resp = api_call_with_retry(
+        client.get_users_tweets,
         id=user_id,
-        max_results=min(count * 2, 100),  # いいね0件を除外するため多めに取得
+        max_results=min(count * 2, 100),
         tweet_fields=["public_metrics", "created_at"],
         exclude=["retweets"],
     )
-    if not resp.data:
+    if not resp or not resp.data:
         return []
 
     tweets = []
@@ -82,12 +109,13 @@ def get_recent_tweets(client, user_id: str, count: int = 5) -> list[dict]:
 
 def get_liking_users(client, tweet_id: str) -> list[dict]:
     """ツイートにいいねしたユーザー一覧を取得（OAuth 1.0a User Context必須）"""
-    resp = client.get_liking_users(
+    resp = api_call_with_retry(
+        client.get_liking_users,
         id=tweet_id,
         user_fields=["username", "name", "protected", "public_metrics"],
         user_auth=True,
     )
-    if not resp.data:
+    if not resp or not resp.data:
         return []
 
     users = []

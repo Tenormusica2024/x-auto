@@ -96,10 +96,23 @@ python collect_likers.py
 - 上限に達したら残りは `target_users.json` の `remaining` に記録
 
 ## 注意事項
-- 企業アカウント・botアカウントへのいいね返しは不要（CiCの判断に任せる）
+- 企業アカウント・botアカウントへのいいね返しは不要（目視で明らかにbotと判断できる場合スキップ）
 - 非公開アカウントは `collect_likers.py` が自動除外
 - いいね済みのツイートは再度いいねしない（find結果で自動判定）
 - rate limit発生時は1分待って再試行
+
+## セッション復旧手順
+途中でCiCセッションが落ちた場合:
+1. `like_history.json` を確認し、`processed` に記録済みのユーザーを特定
+2. `target_users.json` の `today` 配列と照合し、未処理ユーザーを特定
+3. `collect_likers.py` は**再実行しない**（target_users.json が上書きされる）
+4. 未処理ユーザーに対してフェーズ3から再開
+
+**remaining ユーザーの翌日引き継ぎ:**
+- `like_history.json` の `remaining_users.next_run` に残りユーザーが記録されている
+- 翌日の `collect_likers.py` 実行時に新たな `target_users.json` が生成される
+- remaining は新規ユーザーと合算して `daily_like_limit` の予算内で処理される
+- ただし `collect_likers.py` は remaining を直接引き継がない。翌日も同じユーザーがいいねしていれば自動的に再収集される
 
 ## 二重いいね防止（CRITICAL）
 - `like_history.json` は1ユーザー処理ごとに即座更新（フェーズ4参照）
