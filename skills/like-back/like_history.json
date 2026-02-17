@@ -1,0 +1,67 @@
+{
+  "last_run": "2026-02-17T21:30:00+09:00",
+  "processed": {
+    "TakanoriAzegami": {
+      "last_liked_at": "2026-02-17T21:00:00+09:00",
+      "liked_count": 2,
+      "source_tweets": ["2022906176405647831", "2022590268776792224", "2023009050322247965"]
+    },
+    "nyax_nx": {
+      "last_liked_at": "2026-02-17T21:05:00+09:00",
+      "liked_count": 2,
+      "source_tweets": ["2022906176405647831"]
+    },
+    "tofu_D_kozo": {
+      "last_liked_at": "2026-02-17T21:08:00+09:00",
+      "liked_count": 2,
+      "source_tweets": ["2022906176405647831"]
+    },
+    "seckey_101296": {
+      "last_liked_at": "2026-02-17T21:10:00+09:00",
+      "liked_count": 2,
+      "source_tweets": ["2022906176405647831"]
+    },
+    "orion_ai_m": {
+      "last_liked_at": "2026-02-17T21:12:00+09:00",
+      "liked_count": 2,
+      "source_tweets": ["2023644475189588413"]
+    },
+    "hattatsu0930": {
+      "last_liked_at": "2026-02-17T21:15:00+09:00",
+      "liked_count": 2,
+      "source_tweets": ["2022590268776792224"]
+    },
+    "popo_fukugyo": {
+      "last_liked_at": "2026-02-17T21:18:00+09:00",
+      "liked_count": 2,
+      "source_tweets": ["2023384746261373160"]
+    },
+    "yoppy0123": {
+      "last_liked_at": "2026-02-17T21:20:00+09:00",
+      "liked_count": 2,
+      "source_tweets": ["2023384746261373160"]
+    },
+    "Lovanaut": {
+      "last_liked_at": "2026-02-17T21:25:00+09:00",
+      "liked_count": 2,
+      "source_tweets": ["2023009050322247965"]
+    },
+    "koretsuta_post": {
+      "last_liked_at": "2026-02-17T21:28:00+09:00",
+      "liked_count": 2,
+      "source_tweets": ["2022590268776792224"]
+    }
+  },
+  "daily_stats": {
+    "2026-02-17": {
+      "total_likes_given": 20,
+      "users_processed": 10,
+      "users_skipped": 0,
+      "source_tweets_checked": 5
+    }
+  },
+  "remaining_users": {
+    "next_run": ["A_Genno", "y_____pi06", "build_up_daily", "a_t_mosphere", "rhain428812"],
+    "reason": "daily_limit_reached"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "daily_like_limit": 20,
+  "likes_per_user": 2,
+  "repeater_bonus": 1,
+  "tweet_check_count": 5,
+  "history_expiry_days": 7,
+  "skip_protected": true,
+  "skip_bot_accounts": true,
+  "allow_repost_likes": false
+}
