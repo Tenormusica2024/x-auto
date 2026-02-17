@@ -144,6 +144,16 @@ python -X utf8 "C:\Users\Tenormusica\scripts\grok_research.py" --mode web "AI �
 
 Phase 1（日本語バズ）、Phase 2（Grok + Discord）の結果を統合し、Phase 0の方向に沿ってネタを選定する。
 
+### コンテンツ戦略リファレンス参照
+
+**`common/content-strategy-ref.md` を読み込み、ネタ選定の優先度判断に活用する。**
+
+- W-Scoreが高いcontent_type（BIP・体験談等）に該当するネタを優先的に選定
+- ニュース系ネタを選ぶ場合は、飽和度が低い（early以前）ものを優先
+- 独自性を高くできるネタ（自分の体験・データを加えられるもの）を優先
+
+**注意:** このファイルはcontent_evaluator.pyが毎日自動更新。存在しない場合はスキップ。
+
 ### 議論進行度による鮮度判定（MANDATORY）
 
 **`common/discourse-freshness.md` を参照し、ネタの論点がどの段階にあるか確認する。**

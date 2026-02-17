@@ -90,8 +90,9 @@ AIパワーユーザー・個人開発者(@sena_09_04)のX投稿を生成・レ�
 | `common/value-rules.md` | 投稿価値ルール（信頼残高基準・5条件・時間責任・自己テスト） |
 | `common/discourse-freshness.md` | 議論進行度マップ（論点の鮮度を段階で判定。一般論着地防止） |
 | `common/buzz-style-reference.md` | バズ文体パターン分析（generate-tweet-buzzから参照） |
+| `common/content-strategy-ref.md` | コンテンツ戦略リファレンス（content_evaluator.pyが毎日自動生成。W-Score順のcontent_type優先度等） |
 
-**読み込み順序**: persona-ref.md -> anti-ai-rules.md -> format-rules.md -> expression-rules.md -> value-rules.md -> discourse-freshness.md -> 各スキルPROMPT.md
+**読み込み順序**: persona-ref.md -> anti-ai-rules.md -> format-rules.md -> expression-rules.md -> value-rules.md -> discourse-freshness.md -> content-strategy-ref.md -> 各スキルPROMPT.md
 
 ## ユーティリティスキル（MANDATORY: 該当キーワード検出時はスキルを読んでから作業）
 
@@ -175,6 +176,7 @@ x-auto/
 | `zeitgeist_detector.py` | 毎日 07:00 | ツイートのムード分類 → スナップショット生成（ツイート生成トーン調整用） | $0.00 |
 | `trend_detector.py` | 毎日 06:30 | frontier reportからトピック抽出 → X検索 → 下書き生成 + キーパーソン蓄積 + username自動解決 + GC | ~$0.53 |
 | `daily_metrics.py` | 毎日 21:00 | imp/eng率分析 + フォロワー追跡 + パターン分析（時間帯/文字数） | ~$0.105 |
+| `content_evaluator.py` | 毎日 21:05 | ツイート多次元評価（content_type/originality/ai_citation_value等） + Obsidianレポート | $0.00 |
 | `discourse-freshness-updater` | 毎週日曜 20:00 | Grok APIで議論進行度マップ（discourse-freshness.md）を自動更新 | ~5-7円 |
 
 **実行方法（手動）:**
@@ -191,10 +193,13 @@ python -X utf8 trend_detector.py                  # 通常実行
 python -X utf8 trend_detector.py --dry-run        # キーワード抽出のみ
 python -X utf8 daily_metrics.py                   # 直近20件分析
 python -X utf8 daily_metrics.py --count 10        # 件数指定
+python -X utf8 content_evaluator.py               # 未分類ツイートを評価 + レポート生成
+python -X utf8 content_evaluator.py --force        # 全ツイート再評価
 ```
 
 **出力先:**
 - Obsidian日報: `VaultD\...\x-analytics\daily\metrics-YYYY-MM-DD.md`
+- Obsidian評価: `VaultD\...\x-analytics\evaluations\eval-YYYY-MM-DD.md`
 - Obsidianトレンド: `VaultD\...\x-analytics\trends\trends-YYYY-MM-DD.md`
 - Obsidianムード: `VaultD\...\x-analytics\zeitgeist\zeitgeist-YYYY-MM-DD.md`
 - 下書き: `x-auto\drafts\trend-YYYY-MM-DD-*.md`

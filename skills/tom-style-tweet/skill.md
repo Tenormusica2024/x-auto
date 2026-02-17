@@ -34,6 +34,8 @@ tom-style-tweet/
 
 ```
 1. TOM_STYLE_PROMPT.md を読み込む
+1.5. common/content-strategy-ref.md を読み込み、W-Scoreが高いcontent_typeを把握
+     （存在しない場合はスキップ）
 2. TOPIC_DEPTH_ANALYSIS.md でトピック・深度を決定
 3. 重複チェック（下記参照）
 4. 5つのパターンから選択して生成:

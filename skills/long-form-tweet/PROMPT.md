@@ -34,6 +34,21 @@ zeitgeist-snapshot.json を読み込んで日本AI界隈の空気感を確認す
 
 ---
 
+### ステップ0.7: コンテンツ戦略チェック
+
+`common/content-strategy-ref.md` を読み込み、コンテンツタイプ別のパフォーマンス傾向を把握する。
+
+**読み込み先:** `C:\Users\Tenormusica\x-auto\common\content-strategy-ref.md`
+
+**活用:**
+- W-Scoreが高いcontent_type（BIP・体験談等）を優先して掘り下げ
+- ニュース解説の場合は独自分析・体験を必ず加える（情報伝達だけではスコア低い）
+- 独自性4-5に相当する切り口を意識（具体的な数字・手順・体験）
+
+**注意:** このファイルはcontent_evaluator.pyが毎日自動更新。存在しない場合はスキップ。
+
+---
+
 ### ステップ1: トーン決定
 
 #### 新ツール紹介の場合（デフォルト: 肯定的）

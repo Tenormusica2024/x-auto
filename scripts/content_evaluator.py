@@ -103,11 +103,12 @@ CLASSIFICATION_PROMPT = """\
 
 ### ai_citation_value（AI引用価値 1-5）
 AI検索（ChatGPT、Perplexity等）がこのツイートを一次ソースとして引用する可能性。
-1: 引用価値なし（一般的な感想・挨拶）
-2: 低い（ニュースの要約だが独自情報なし）
-3: 中程度（独自の使用感やTipsが含まれる）
-4: 高い（具体的なデータ・比較・検証結果がある）
-5: 非常に高い（他にない一次情報・独自検証・専門的分析）
+以下の5項目のうち該当する数がスコアになる（0該当=1、5該当=5）:
+- 独自データや具体的な数値を含む（ベンチマーク結果・コスト比較・設定値等）
+- 再現可能な具体手順を含む（コマンド・設定方法・ステップバイステップ）
+- 個人の実体験に基づく知見（実際に試した結果・遭遇した問題と解決策）
+- 他で見つからない一次情報（公式未記載の仕様・独自発見・未報告のバグ等）
+- 検証可能な主張（リンク・ソース・スクリーンショット付き）
 
 ## ツイート一覧
 
@@ -490,6 +491,125 @@ def generate_eval_report(
     return report
 
 
+# --- 戦略サマリー生成（ツイート生成スキル向け） ---
+
+STRATEGY_REF_PATH = Path(r"C:\Users\Tenormusica\x-auto\common\content-strategy-ref.md")
+
+
+def generate_strategy_ref(
+    tweets: list[dict],
+    evals: dict,
+    type_analysis: dict,
+    media_analysis: dict,
+    orig_analysis: dict,
+    sat_analysis: dict,
+):
+    """ツイート生成スキルが参照する戦略サマリーを common/content-strategy-ref.md に出力
+
+    content_evaluator.pyの分析結果を、生成スキルが読みやすい形に要約。
+    どのcontent_typeが高パフォーマンスか、独自性・画像の効果など。
+    """
+    n = len([t for t in tweets if t["id"] in evals])
+    if n == 0:
+        return
+
+    # コンテンツタイプをW-Score降順でランキング
+    type_ranking = sorted(
+        type_analysis.items(),
+        key=lambda kv: kv[1]["avg_w_score"],
+        reverse=True,
+    )
+
+    # 独自性スコア別の傾向を抽出
+    orig_insight = ""
+    if orig_analysis:
+        scores = sorted(orig_analysis.keys())
+        low_scores = [s for s in scores if s <= 2]
+        high_scores = [s for s in scores if s >= 4]
+        if low_scores and high_scores:
+            low_avg = sum(orig_analysis[s]["avg_w_score"] for s in low_scores) / len(low_scores)
+            high_avg = sum(orig_analysis[s]["avg_w_score"] for s in high_scores) / len(high_scores)
+            if high_avg > low_avg:
+                orig_insight = f"独自性4-5は平均W-Score {high_avg:.1f}、独自性1-2は{low_avg:.1f}（独自性が高いほど深い反応）"
+            else:
+                orig_insight = f"独自性4-5は平均W-Score {high_avg:.1f}、独自性1-2は{low_avg:.1f}（独自性と反応は比例していない）"
+
+    # 画像効果の傾向
+    media_insight = ""
+    if "with_media" in media_analysis and "without_media" in media_analysis:
+        w = media_analysis["with_media"]
+        wo = media_analysis["without_media"]
+        imp_diff = w["avg_imp"] - wo["avg_imp"]
+        ws_diff = round(w["avg_w_score"] - wo["avg_w_score"], 1)
+        media_insight = (
+            f"画像あり: 平均imp {w['avg_imp']:,} / W-Score {w['avg_w_score']} "
+            f"(画像なし比: imp {'+' if imp_diff >= 0 else ''}{imp_diff:,}, "
+            f"W-Score {'+' if ws_diff >= 0 else ''}{ws_diff})"
+        )
+
+    # ニュース飽和度の傾向
+    sat_insight = ""
+    if sat_analysis:
+        best_sat = max(sat_analysis.items(), key=lambda kv: kv[1]["avg_w_score"])
+        sat_insight = f"ニュース系は飽和度'{best_sat[0]}'が最もW-Score高い（{best_sat[1]['avg_w_score']}）"
+
+    # Markdown出力
+    md = f"""# コンテンツ戦略リファレンス
+
+content_evaluator.py が自動生成。ツイート生成スキルのネタ選定・方向性判断に使用。
+更新: {now_str()} | 分析対象: {n}件
+
+## コンテンツタイプ優先度（W-Score順）
+
+W-Score = Xアルゴリズム重み付きエンゲージメント。高いほど会話・保存・引用を生む。
+
+| 優先度 | タイプ | 平均W-Score | 平均imp | 件数 | ガイダンス |
+|--------|--------|------------|---------|------|-----------|
+"""
+    for rank, (ct, d) in enumerate(type_ranking, 1):
+        # タイプ別のガイダンスを生成
+        if ct == "bip":
+            guide = "主力。具体的な体験・数字を入れると高スコア"
+        elif ct == "engagement":
+            guide = "フォロワー維持に必要。W-Scoreは高いが拡散力は低い"
+        elif ct == "opinion":
+            guide = "独自の切り口が重要。一般論だとスコア低下"
+        elif ct == "ai_news":
+            guide = "impは稼げるがW-Scoreは低め。速報性と独自分析が鍵"
+        elif ct == "tutorial":
+            guide = "再現可能な手順は高いAI引用価値"
+        elif ct == "quote_rt":
+            guide = "会話参加用。W-Score低め"
+        else:
+            guide = ""
+        md += f"| {rank} | {ct} | {d['avg_w_score']} | {d['avg_imp']:,} | {d['count']} | {guide} |\n"
+
+    md += f"""
+## 独自性の効果
+
+{orig_insight if orig_insight else "データ不足"}
+
+## 画像の効果
+
+{media_insight if media_insight else "データ不足"}
+
+## ニュース飽和度
+
+{sat_insight if sat_insight else "ニュース系ツイートのデータ不足"}
+
+## ネタ選定ガイダンス
+
+- **BIP・体験談を優先**: 独自体験は代替不可。具体的な数字・苦労・発見を含めると高スコア
+- **ニュースは速報性が命**: 飽和度がmainstream以降だとW-Scoreが大幅低下
+- **独自分析を加える**: 同じネタでも自分の体験・データ・視点を加えるとスコア向上
+- **画像は補強として有効**: imp増加効果あり。ただし画像に頼りすぎない（テキストの質が本質）
+"""
+
+    STRATEGY_REF_PATH.parent.mkdir(parents=True, exist_ok=True)
+    STRATEGY_REF_PATH.write_text(md, encoding="utf-8")
+    print(f"[OK] 戦略リファレンス更新: {STRATEGY_REF_PATH}")
+
+
 # --- メイン ---
 
 async def async_main(args):
@@ -568,6 +688,12 @@ async def async_main(args):
     if not args.dry_run:
         filename = f"eval-{today_str()}.md"
         save_to_obsidian(OBSIDIAN_EVAL, filename, report)
+
+        # ツイート生成スキル向け戦略サマリー更新
+        generate_strategy_ref(
+            all_tweets, evals,
+            type_analysis, media_analysis, orig_analysis, sat_analysis,
+        )
 
         # Discord通知
         summary_lines = []
