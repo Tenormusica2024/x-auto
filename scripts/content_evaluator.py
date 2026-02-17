@@ -5,7 +5,7 @@ content_evaluator.py - X コンテンツ多次元評価分析
 daily_metrics.py が蓄積した tweet_details.json を入力として使用。
 
 評価軸:
-  - content_type: コンテンツ種別（ai_news / bip / opinion / tutorial / quote_rt / engagement / other）
+  - content_type: コンテンツ種別（ai_news / bip / opinion / how-to / quote_rt / engagement / other）
   - originality: 独自性（1-5、大手インフルエンサーの二番煎じか独自知見か）
   - media_contribution: 画像の寄与度（essential / enhancing / irrelevant / none）
   - news_saturation: ニュース飽和度（first_mover / early / mainstream / late / rehash / n/a）
@@ -68,7 +68,7 @@ CLASSIFICATION_PROMPT = """\
 - "ai_news": AIやテクノロジーのニュース・速報・新サービス紹介
 - "bip": Build in Public（開発過程・作業ログ・進捗報告・個人開発）
 - "opinion": 意見・考察・ポエム・業界への見解
-- "tutorial": 使い方・ハウツー・Tips共有
+- "how-to": 使い方・ハウツー・Tips・具体的手順の共有
 - "quote_rt": 他人のツイートへのコメント・引用
 - "engagement": 挨拶・お礼・日常会話・交流目的
 - "other": 上記に該当しないもの
@@ -576,7 +576,7 @@ W-Score = Xアルゴリズム重み付きエンゲージメント。高いほど
             guide = "独自の切り口が重要。一般論だとスコア低下"
         elif ct == "ai_news":
             guide = "impは稼げるがW-Scoreは低め。速報性と独自分析が鍵"
-        elif ct == "tutorial":
+        elif ct == "how-to":
             guide = "再現可能な手順は高いAI引用価値"
         elif ct == "quote_rt":
             guide = "会話参加用。W-Score低め"
