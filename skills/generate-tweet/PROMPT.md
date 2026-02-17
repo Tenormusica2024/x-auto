@@ -417,6 +417,24 @@ Task(subagent_type="general-purpose",
 **初発表日**: [YYYY-MM-DD]
 ```
 
+### ステップ7.5: Discord #tweet-drafts 自動保存（MANDATORY）
+
+**ツイート文を生成したら、ユーザーに提示すると同時にDiscord #tweet-draftsに自動保存する。**
+
+```python
+import sys
+sys.path.insert(0, r'C:\Users\Tenormusica\x-auto\scripts')
+from dotenv import load_dotenv
+load_dotenv(r'C:\Users\Tenormusica\x-auto-posting\.env')
+from x_client import notify_discord_drafts
+
+notify_discord_drafts("[ツイート本文]", label="[トピック要約]")
+```
+
+- DISCORD_WEBHOOK_URL_DRAFTS未設定時は警告を出してスキップ（フロー全体は止めない）
+- 複数案生成時は全案を個別に送信
+- 引用リンクも本文に含めて送信
+
 ### ステップ8: 採用確認・履歴記録（MANDATORY - フロー最終ステップ）
 
 **ツイート提示後、必ず以下を実行:**

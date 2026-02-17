@@ -115,6 +115,28 @@ def notify_discord_with_file(message: str, file_path: str, filename: str = "") -
         return False
 
 
+def notify_discord_drafts(tweet_text: str, label: str = "") -> bool:
+    """ツイート下書きを #tweet-drafts チャンネルに送信"""
+    webhook_url = os.getenv("DISCORD_WEBHOOK_URL_DRAFTS")
+    if not webhook_url:
+        print("[WARN] DISCORD_WEBHOOK_URL_DRAFTS が .env に未設定")
+        return False
+
+    header = f"**[Tweet Draft]** {label}\n\n" if label else "**[Tweet Draft]**\n\n"
+    message = f"{header}{tweet_text}"
+
+    if len(message) > 2000:
+        message = message[:1997] + "..."
+
+    resp = requests.post(webhook_url, json={"content": message}, timeout=10)
+    if resp.status_code == 204:
+        print(f"[OK] Discord #tweet-drafts 送信完了: {label or '(no label)'}")
+        return True
+    else:
+        print(f"[WARN] Discord #tweet-drafts 送信失敗: {resp.status_code} {resp.text}")
+        return False
+
+
 def save_to_obsidian(subdir: Path, filename: str, content: str) -> Path:
     """Obsidian Vaultにmarkdownファイルを保存"""
     subdir.mkdir(parents=True, exist_ok=True)

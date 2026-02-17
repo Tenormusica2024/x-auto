@@ -294,7 +294,8 @@ persona-db 6ファイルと照合（persona-ref.mdの5ファイル + experiences
 | AIニュース | 情報鮮度・正確性・インパクト | 共感度（事実伝達型のため） |
 
 3. A判定のみ投稿可能
-4. 投稿/下書き保存:
+4. **Discord #tweet-drafts 自動保存（MANDATORY）**: ツイート生成完了時に `notify_discord_drafts()` で自動送信
+5. 投稿/下書き保存:
    - CiCセッション: `skills/post-tweet/PROMPT.md` で投稿 or `x-draft-saver` で下書き保存
    - 非CiCセッション: X API経由で投稿（`x_client.py` → `create_tweet()`、$0.010/件）
 

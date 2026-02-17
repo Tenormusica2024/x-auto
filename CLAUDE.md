@@ -67,6 +67,16 @@ AIパワーユーザー・個人開発者(@sena_09_04)のX投稿を生成・レ�
 
 ---
 
+## Discord #tweet-drafts 自動保存（MANDATORY）
+
+**ツイート文を生成したら自動的にDiscord #tweet-draftsに保存する。**
+
+- 関数: `x_client.py` の `notify_discord_drafts(tweet_text, label)`
+- webhook: `.env` の `DISCORD_WEBHOOK_URL_DRAFTS`
+- タイミング: ツイート文をユーザーに提示するタイミングで同時に送信
+- スキル外で直接ツイートを生成した場合も同様に送信する
+- webhook未設定時は警告のみでフロー全体は止めない
+
 ## 共通ルール（全スキル共通・必ず参照）
 
 各スキルのPROMPT.mdを読む**前に**、以下の共通ルールを読むこと:
