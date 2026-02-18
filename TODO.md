@@ -38,8 +38,8 @@
 ### 下流連携
 
 - DONE: `content-strategy-ref.md`: ソースA+Bの統合ガイダンス動的生成（4象限分析: 最強カテゴリ/改善チャンス/ニッチ強み + 自分のW-Score実数値付き）
-- 未着手: `discourse-freshness.md`: 実データベースの議論進行度判定に移行
-- 未着手: `zeitgeist-snapshot.json`: バズツイート分類精度の向上
+- DONE: `discourse-freshness.md`: fetch_buzz_db.pyにbuzz_content_evaluations統合 + SKILL.mdのStep 2/5にバズ分類定量根拠の活用ガイダンス追記
+- DONE: `zeitgeist-snapshot.json`: buzz_content_evaluations.jsonからcontent_type/virality_factor分布を集計し、スナップショットにbuzz_content_analysisフィールドとして統合
 
 ---
 

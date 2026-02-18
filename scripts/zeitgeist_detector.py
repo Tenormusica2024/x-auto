@@ -52,6 +52,7 @@ logger = logging.getLogger(__name__)
 AI_BUZZ_DB = Path(r"C:\Users\Tenormusica\ai-buzz-extractor\ai_buzz.db")
 AI_BUZZ_JSON = Path(r"C:\Users\Tenormusica\Documents\ai-buzz-extractor\data.json")
 BUZZ_TWEETS_JSON = DATA_DIR / "buzz-tweets-latest.json"  # buzz_tweet_extractor.pyの出力
+BUZZ_EVALS_JSON = DATA_DIR / "buzz_content_evaluations.json"  # buzz_content_analyzer.pyの蓄積
 SNAPSHOT_PATH = DATA_DIR / "zeitgeist-snapshot.json"
 OBSIDIAN_ZEITGEIST = OBSIDIAN_BASE / "zeitgeist"
 
@@ -643,7 +644,105 @@ def aggregate_moods(classified: list[dict]) -> dict:
     }
 
 
-def generate_snapshot(aggregated: dict, tweets_analyzed: int) -> dict:
+def load_buzz_content_analysis(days: int = 7) -> dict:
+    """
+    buzz_content_evaluations.jsonからcontent_type・virality_factorの分布を集計する。
+    zeitgeistスナップショットに「今バズってるコンテンツの傾向」を補完情報として追加する。
+
+    Args:
+        days: 集計対象の日数（デフォルト7日。直近トレンドを重視）
+
+    Returns:
+        content_type分布・virality_factor分布・トップバズツイート等を含むdict。
+        データなしの場合は空dictを返す。
+    """
+    if not BUZZ_EVALS_JSON.exists():
+        logger.info("buzz_content_evaluations.json not found, skipping buzz content analysis")
+        return {}
+
+    try:
+        raw = json.loads(BUZZ_EVALS_JSON.read_text(encoding="utf-8"))
+    except Exception as e:
+        logger.warning(f"buzz_content_evaluations.json parse error: {e}")
+        return {}
+
+    evaluations = raw.get("evaluations", {})
+    if not evaluations:
+        return {}
+
+    # 直近N日のデータのみ集計
+    cutoff = (datetime.now(timezone(timedelta(hours=9))) - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    # content_type別: 件数とエンゲージメント合計
+    ct_stats: dict[str, dict] = {}
+    # virality_factor別: 件数とエンゲージメント合計
+    vf_stats: dict[str, dict] = {}
+    total_count = 0
+
+    for eval_data in evaluations.values():
+        eval_date = eval_data.get("evaluated_date", "")
+        if eval_date < cutoff:
+            continue
+
+        total_count += 1
+        eng = eval_data.get("tweet_data", {}).get("engagement_score", 0)
+
+        # content_type集計
+        ct = eval_data.get("content_type", "unknown")
+        if ct not in ct_stats:
+            ct_stats[ct] = {"count": 0, "total_eng": 0}
+        ct_stats[ct]["count"] += 1
+        ct_stats[ct]["total_eng"] += eng
+
+        # virality_factor集計
+        vf = eval_data.get("virality_factor", "unknown")
+        if vf not in vf_stats:
+            vf_stats[vf] = {"count": 0, "total_eng": 0}
+        vf_stats[vf]["count"] += 1
+        vf_stats[vf]["total_eng"] += eng
+
+    if total_count == 0:
+        return {}
+
+    # content_type分布（平均eng順にソート）
+    ct_distribution = {}
+    for ct, stats in sorted(ct_stats.items(), key=lambda x: x[1]["total_eng"] / max(x[1]["count"], 1), reverse=True):
+        ct_distribution[ct] = {
+            "count": stats["count"],
+            "avg_engagement": round(stats["total_eng"] / stats["count"]),
+            "share": round(stats["count"] / total_count, 3),
+        }
+
+    # virality_factor分布（平均eng順にソート）
+    vf_distribution = {}
+    for vf, stats in sorted(vf_stats.items(), key=lambda x: x[1]["total_eng"] / max(x[1]["count"], 1), reverse=True):
+        vf_distribution[vf] = {
+            "count": stats["count"],
+            "avg_engagement": round(stats["total_eng"] / stats["count"]),
+            "share": round(stats["count"] / total_count, 3),
+        }
+
+    # ツイート生成向けの要約: 「今効いてるバズ要因」トップ3
+    top_virality_factors = list(vf_distribution.keys())[:3]
+    # 「今バズってるコンテンツタイプ」トップ3
+    top_content_types = list(ct_distribution.keys())[:3]
+
+    logger.info(
+        f"Buzz content analysis: {total_count} evals (last {days}d), "
+        f"top_ct={top_content_types}, top_vf={top_virality_factors}"
+    )
+
+    return {
+        "period_days": days,
+        "total_evaluated": total_count,
+        "content_type_distribution": ct_distribution,
+        "virality_factor_distribution": vf_distribution,
+        "top_content_types": top_content_types,
+        "top_virality_factors": top_virality_factors,
+    }
+
+
+def generate_snapshot(aggregated: dict, tweets_analyzed: int, buzz_content: dict | None = None) -> dict:
     """zeitgeist-snapshot.json の完全なスナップショットを生成"""
     dominant = aggregated["dominant_mood"]
     guidance = TONE_GUIDANCE_MAP.get(dominant, TONE_GUIDANCE_MAP["pragmatic"])
@@ -697,6 +796,10 @@ def generate_snapshot(aggregated: dict, tweets_analyzed: int) -> dict:
         "tone_guidance": guidance,
         "previous_snapshot": previous,
     }
+
+    # バズコンテンツ分析データがあればスナップショットに追加
+    if buzz_content:
+        snapshot["buzz_content_analysis"] = buzz_content
 
     return snapshot
 
@@ -783,6 +886,41 @@ def save_obsidian_report(snapshot: dict) -> None:
 - **Previous Mood**: {d['previous_snapshot']['dominant_mood']}
 - **Shift**: {d['previous_snapshot'].get('shift', 'N/A')}
 """
+    # バズコンテンツ分析セクションを追加（データがあれば）
+    buzz = d.get("buzz_content_analysis", {})
+    if buzz:
+        ct_lines = []
+        for ct, info in buzz.get("content_type_distribution", {}).items():
+            ct_lines.append(f"| {ct} | {info['count']} | {info['avg_engagement']:,} | {info['share']:.0%} |")
+        ct_table = "\n".join(ct_lines) if ct_lines else "- (データなし)"
+
+        vf_lines = []
+        for vf, info in buzz.get("virality_factor_distribution", {}).items():
+            vf_lines.append(f"| {vf} | {info['count']} | {info['avg_engagement']:,} | {info['share']:.0%} |")
+        vf_table = "\n".join(vf_lines) if vf_lines else "- (データなし)"
+
+        content += f"""
+## Buzz Content Analysis (直近{buzz.get('period_days', 7)}日)
+
+対象: {buzz.get('total_evaluated', 0)}件のバズツイート分類データ
+
+### Content Type Distribution (平均eng順)
+
+| Type | Count | Avg Eng | Share |
+|------|-------|---------|-------|
+{ct_table}
+
+### Virality Factor Distribution (平均eng順)
+
+| Factor | Count | Avg Eng | Share |
+|--------|-------|---------|-------|
+{vf_table}
+
+### Top Buzz Trends
+- **バズしやすいコンテンツ**: {', '.join(buzz.get('top_content_types', []))}
+- **主要バズ要因**: {', '.join(buzz.get('top_virality_factors', []))}
+"""
+
     save_to_obsidian(OBSIDIAN_ZEITGEIST, f"zeitgeist-{today_str()}.md", content)
 
 
@@ -813,6 +951,9 @@ async def run(hours: int = 24, limit: int = 50, dry_run: bool = False) -> dict:
     """メイン実行フロー"""
     logger.info(f"=== Zeitgeist Detector Start (last {hours}h, limit {limit}) ===")
 
+    # 0. バズコンテンツ分析データを読み込み（buzz_content_analyzer.pyの蓄積データ）
+    buzz_content = load_buzz_content_analysis(days=7)
+
     # 1. データ取得
     tweets = fetch_recent_tweets(hours=hours, limit=limit)
     if not tweets:
@@ -820,6 +961,7 @@ async def run(hours: int = 24, limit: int = 50, dry_run: bool = False) -> dict:
         snapshot = generate_snapshot(
             aggregate_moods([]),
             tweets_analyzed=0,
+            buzz_content=buzz_content,
         )
         if not dry_run:
             save_snapshot(snapshot)
@@ -836,8 +978,8 @@ async def run(hours: int = 24, limit: int = 50, dry_run: bool = False) -> dict:
     # 3. 集約
     aggregated = aggregate_moods(classified)
 
-    # 4. スナップショット生成
-    snapshot = generate_snapshot(aggregated, tweets_analyzed=len(tweets))
+    # 4. スナップショット生成（バズコンテンツ分析データを補完情報として含む）
+    snapshot = generate_snapshot(aggregated, tweets_analyzed=len(tweets), buzz_content=buzz_content)
 
     # 5. ムードシフト検出
     shift_msg = detect_mood_shift(snapshot)

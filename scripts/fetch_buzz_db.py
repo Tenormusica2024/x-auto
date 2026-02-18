@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from collections import Counter
 
 DB_PATH = Path(r"C:\Users\Tenormusica\Documents\ai-buzz-extractor\ai_buzz.db")
+BUZZ_EVALS_JSON = Path(__file__).parent / "data" / "buzz_content_evaluations.json"
 OUTPUT_DIR = Path(__file__).parent / "data"
 
 # discourse-freshness に関連するカテゴリ
@@ -52,6 +53,10 @@ DISCOURSE_KEYWORDS = {
     "ai_writing": [
         "文章力", "writing quality", "creative", "創作",
         "小説", "novel", "human level", "人間超え",
+    ],
+    "ai_agent": [
+        "agent", "エージェント", "MCP", "agentic", "orchestrat",
+        "tool use", "autonomous", "自律", "マルチエージェント",
     ],
 }
 
@@ -157,18 +162,124 @@ def extract_discourse_signals(conn, days):
     }
 
 
+def extract_buzz_eval_signals(days):
+    """
+    buzz_content_evaluations.json からdiscourse領域別の定量シグナルを抽出する。
+    LLM分類済みの7軸データ（content_type, virality_factor, originality等）を活用して、
+    DBのキーワードマッチより高精度な傾向を提供する。
+    """
+    if not BUZZ_EVALS_JSON.exists():
+        return None
+
+    try:
+        raw = json.loads(BUZZ_EVALS_JSON.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+    evaluations = raw.get("evaluations", {})
+    if not evaluations:
+        return None
+
+    cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    # discourse領域別にツイートを分類
+    discourse_signals = {area: [] for area in DISCOURSE_KEYWORDS}
+    # content_type別・virality_factor別の集計
+    ct_stats = Counter()
+    vf_stats = Counter()
+    total = 0
+
+    for eval_data in evaluations.values():
+        if eval_data.get("evaluated_date", "") < cutoff:
+            continue
+
+        total += 1
+        text = eval_data.get("tweet_data", {}).get("text", "")
+        ct = eval_data.get("content_type", "unknown")
+        vf = eval_data.get("virality_factor", "unknown")
+        orig = eval_data.get("originality", 0)
+        acv = eval_data.get("ai_citation_value", 0)
+        eng = eval_data.get("tweet_data", {}).get("engagement_score", 0)
+
+        ct_stats[ct] += 1
+        vf_stats[vf] += 1
+
+        # discourse領域へのマッピング（キーワードマッチ）
+        for area, keywords in DISCOURSE_KEYWORDS.items():
+            if keyword_match(text, keywords):
+                discourse_signals[area].append({
+                    "text": text[:200],
+                    "username": eval_data.get("tweet_data", {}).get("username", ""),
+                    "engagement_score": eng,
+                    "content_type": ct,
+                    "originality": orig,
+                    "ai_citation_value": acv,
+                    "virality_factor": vf,
+                })
+
+    if total == 0:
+        return None
+
+    # 各領域の集計
+    result = {}
+    for area, tweets in discourse_signals.items():
+        # エンゲージメント順ソート
+        tweets.sort(key=lambda x: x["engagement_score"], reverse=True)
+        if tweets:
+            avg_orig = sum(t["originality"] for t in tweets) / len(tweets)
+            avg_acv = sum(t["ai_citation_value"] for t in tweets) / len(tweets)
+            avg_eng = sum(t["engagement_score"] for t in tweets) / len(tweets)
+        else:
+            avg_orig = avg_acv = avg_eng = 0
+
+        result[area] = {
+            "total_matches": len(tweets),
+            "avg_originality": round(avg_orig, 1),
+            "avg_ai_citation_value": round(avg_acv, 1),
+            "avg_engagement": round(avg_eng),
+            # 高シグナルツイート: ai_citation_value >= 3 かつ engagement >= 2000
+            "high_signal_count": len([
+                t for t in tweets
+                if t["ai_citation_value"] >= 3 and t["engagement_score"] >= 2000
+            ]),
+            "top_tweets": tweets[:5],
+        }
+
+    return {
+        "period_days": days,
+        "total_evaluated": total,
+        "content_type_distribution": dict(ct_stats.most_common()),
+        "virality_factor_distribution": dict(vf_stats.most_common()),
+        "discourse_signals": result,
+    }
+
+
 def main():
     days, output_mode = parse_args()
 
-    if not DB_PATH.exists():
-        print(json.dumps({"error": f"DB not found: {DB_PATH}"}))
-        sys.exit(1)
+    result = {"fetched_at": datetime.now().isoformat()}
 
-    conn = sqlite3.connect(str(DB_PATH))
-    result = extract_discourse_signals(conn, days)
-    result["fetched_at"] = datetime.now().isoformat()
-    result["db_path"] = str(DB_PATH)
-    conn.close()
+    # ソース1: ai-buzz-extractor DB
+    if DB_PATH.exists():
+        conn = sqlite3.connect(str(DB_PATH))
+        db_signals = extract_discourse_signals(conn, days)
+        db_signals["db_path"] = str(DB_PATH)
+        conn.close()
+        result["db_signals"] = db_signals
+    else:
+        print(f"DB not found: {DB_PATH}", file=sys.stderr)
+        result["db_signals"] = None
+
+    # ソース2: buzz_content_evaluations.json（LLM分類済みバズデータ）
+    buzz_eval_signals = extract_buzz_eval_signals(days)
+    if buzz_eval_signals:
+        result["buzz_eval_signals"] = buzz_eval_signals
+        print(
+            f"Buzz evals: {buzz_eval_signals['total_evaluated']} tweets (last {days}d)",
+            file=sys.stderr,
+        )
+    else:
+        result["buzz_eval_signals"] = None
 
     output_json = json.dumps(result, ensure_ascii=False, indent=2)
 
