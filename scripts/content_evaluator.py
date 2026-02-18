@@ -11,6 +11,7 @@ daily_metrics.py が蓄積した tweet_details.json を入力として使用。
   - news_saturation: ニュース飽和度（first_mover / early / mainstream / late / rehash / n/a）
   - bip_authenticity: BIPの真正性（1-5、具体的体験か一般論か。BIPのみ）
   - ai_citation_value: AI引用価値（1-5、AI検索で一次ソースとして引用されるか）
+  - reputation_risk: レピュテーションリスク（1-5、信頼毀損リスク。煽り・誤情報・攻撃的批判等）
 
 使い方:
   python -X utf8 content_evaluator.py            # 未分類ツイートを評価 + レポート生成
@@ -110,6 +111,14 @@ AI検索（ChatGPT、Perplexity等）がこのツイートを一次ソースと�
 - 他で見つからない一次情報（公式未記載の仕様・独自発見・未報告のバグ等）
 - 検証可能な主張（リンク・ソース・スクリーンショット付き）
 
+### reputation_risk（レピュテーションリスク 1-5）
+このツイートが発信者の長期的な信頼・好感度に与えるリスク。
+1: リスクなし（有益な知見共有・誠実なBIP・建設的な意見）
+2: 軽微なリスク（やや断定的だが根拠がある・軽い自虐）
+3: 中程度のリスク（根拠なしの断定・他者の成果を自分の手柄のように紹介・過度な煽り見出し）
+4: 高リスク（誤情報の拡散・低品質AI生成画像＋不正確な説明・特定個人や製品への攻撃的批判）
+5: 重大リスク（デマ・差別的表現・炎上目的の挑発・著作権侵害の疑い）
+
 ## ツイート一覧
 
 {tweets_block}
@@ -128,7 +137,8 @@ ai_newsではないツイートの news_saturation は "n/a" にしてくださ�
     "media_contribution": "none",
     "news_saturation": "early",
     "bip_authenticity": null,
-    "ai_citation_value": 2
+    "ai_citation_value": 2,
+    "reputation_risk": 1
   }}
 ]
 ```"""
@@ -268,6 +278,7 @@ async def _classify_batch(
             "news_saturation": "n/a",
             "bip_authenticity": None,
             "ai_citation_value": 2,
+            "reputation_risk": 1,
             "evaluated_at": datetime.now().isoformat(),
         }
         for t in tweets
@@ -399,6 +410,44 @@ def analyze_news_saturation(tweets: list[dict], evals: dict) -> dict:
     return result
 
 
+def analyze_reputation_risk(tweets: list[dict], evals: dict) -> dict:
+    """レピュテーションリスクスコア × パフォーマンス分析
+
+    「impは高いが信頼を毀損する」パターンの検出が目的。
+    W-Scoreが高いのにリスクも高いツイートは要注意。
+    """
+    risk_data = {}
+    for t in tweets:
+        ev = evals.get(t["id"])
+        if not ev:
+            continue
+        risk = ev.get("reputation_risk", 1)
+        if risk not in risk_data:
+            risk_data[risk] = {"impressions": [], "w_scores": [], "tweets": []}
+        risk_data[risk]["impressions"].append(t.get("impressions", 0))
+        risk_data[risk]["w_scores"].append(t.get("weighted_score", 0))
+        # リスク3以上のツイートは個別に記録（要注意ツイート特定用）
+        if risk >= 3:
+            risk_data[risk]["tweets"].append({
+                "id": t["id"],
+                "text_preview": t.get("text", "")[:60].replace("\n", " "),
+                "w_score": t.get("weighted_score", 0),
+                "impressions": t.get("impressions", 0),
+            })
+
+    result = {}
+    for score in sorted(risk_data.keys()):
+        data = risk_data[score]
+        n = len(data["impressions"])
+        result[score] = {
+            "count": n,
+            "avg_imp": round(sum(data["impressions"]) / n) if n else 0,
+            "avg_w_score": round(sum(data["w_scores"]) / n, 1) if n else 0,
+            "flagged_tweets": data.get("tweets", []),
+        }
+    return result
+
+
 # --- レポート生成 ---
 
 def generate_eval_report(
@@ -408,6 +457,7 @@ def generate_eval_report(
     media_analysis: dict,
     orig_analysis: dict,
     sat_analysis: dict,
+    risk_analysis: dict = None,
 ) -> str:
     """Obsidian用の評価レポートMarkdownを生成"""
     evaluated_tweets = [t for t in tweets if t["id"] in evals]
@@ -474,6 +524,25 @@ def generate_eval_report(
         for sat, d in sat_analysis.items():
             report += f"| {sat} | {d['count']} | {d['avg_imp']:,} | {d['avg_w_score']} |\n"
 
+    # レピュテーションリスク
+    if risk_analysis:
+        report += "\n## レピュテーションリスク分析\n\n"
+        report += "| リスク | 件数 | 平均imp | 平均W-Score |\n"
+        report += "|--------|------|---------|-------------|\n"
+        for score, d in risk_analysis.items():
+            label = {1: "リスクなし", 2: "軽微", 3: "中程度", 4: "高", 5: "重大"}.get(score, str(score))
+            report += f"| {score}/5 ({label}) | {d['count']} | {d['avg_imp']:,} | {d['avg_w_score']} |\n"
+
+        # リスク3以上のツイートをフラグ表示
+        flagged = []
+        for score, d in risk_analysis.items():
+            if score >= 3:
+                flagged.extend(d.get("flagged_tweets", []))
+        if flagged:
+            report += "\n### 要注意ツイート（リスク3以上）\n\n"
+            for ft in sorted(flagged, key=lambda x: x["w_score"], reverse=True):
+                report += f"- W:{ft['w_score']} | imp:{ft['impressions']:,} | {ft['text_preview']}...\n"
+
     # 個別ツイート評価一覧
     report += "\n## 個別ツイート評価\n\n"
     for t in sorted(evaluated_tweets, key=lambda x: x.get("weighted_score", 0), reverse=True):
@@ -485,8 +554,12 @@ def generate_eval_report(
             report += f"飽和:{ev['news_saturation']} | "
         if ev.get("bip_authenticity") is not None:
             report += f"BIP真正:{ev['bip_authenticity']} | "
-        report += f"AI引用:{ev.get('ai_citation_value', '?')}\n"
-        report += f"  {preview}...\n\n"
+        report += f"AI引用:{ev.get('ai_citation_value', '?')}"
+        # リスクスコアが2以上の場合のみ表示（1=リスクなしは省略）
+        risk = ev.get("reputation_risk", 1)
+        if risk >= 2:
+            report += f" | リスク:{risk}"
+        report += f"\n  {preview}...\n\n"
 
     return report
 
@@ -573,6 +646,7 @@ def generate_strategy_ref(
     media_analysis: dict,
     orig_analysis: dict,
     sat_analysis: dict,
+    risk_analysis: dict = None,
 ):
     """ツイート生成スキルが参照する戦略サマリーを common/content-strategy-ref.md に出力
 
@@ -623,6 +697,17 @@ def generate_strategy_ref(
         best_sat = max(sat_analysis.items(), key=lambda kv: kv[1]["avg_w_score"])
         sat_insight = f"ニュース系は飽和度'{best_sat[0]}'が最もW-Score高い（{best_sat[1]['avg_w_score']}）"
 
+    # レピュテーションリスクの傾向
+    risk_insight = ""
+    if risk_analysis:
+        total = sum(d["count"] for d in risk_analysis.values())
+        risky_count = sum(d["count"] for s, d in risk_analysis.items() if s >= 3)
+        if risky_count > 0:
+            risky_pct = round(risky_count / total * 100, 1) if total else 0
+            risk_insight = f"リスク3以上: {risky_count}件/{total}件（{risky_pct}%）— 煽り・根拠不足・二次利用感に注意"
+        else:
+            risk_insight = f"全{total}件がリスク2以下（良好）"
+
     # ソースAセクションのMarkdown生成
     source_a = f"""## ソースA: 自己ツイート分析（content_evaluator.py）
 
@@ -651,6 +736,10 @@ W-Score = Xアルゴリズム重み付きエンゲージメント。高いほど
 ### ニュース飽和度
 
 {sat_insight if sat_insight else "ニュース系ツイートのデータ不足"}
+
+### レピュテーションリスク
+
+{risk_insight if risk_insight else "データ不足"}
 """
 
     # --- マルチソース対応: 既存ファイルのソースB以降を保持 ---
@@ -753,12 +842,14 @@ async def async_main(args):
     media_analysis = analyze_media_effect(all_tweets, evals)
     orig_analysis = analyze_originality(all_tweets, evals)
     sat_analysis = analyze_news_saturation(all_tweets, evals)
+    risk_analysis = analyze_reputation_risk(all_tweets, evals)
 
     # レポート生成
     print(f"\n[3/3] レポート生成...")
     report = generate_eval_report(
         all_tweets, evals,
         type_analysis, media_analysis, orig_analysis, sat_analysis,
+        risk_analysis,
     )
 
     if not args.dry_run:
@@ -769,6 +860,7 @@ async def async_main(args):
         generate_strategy_ref(
             all_tweets, evals,
             type_analysis, media_analysis, orig_analysis, sat_analysis,
+            risk_analysis,
         )
 
         # Discord通知
