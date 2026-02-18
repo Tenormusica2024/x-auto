@@ -40,37 +40,21 @@ generate-tweetから分離した投稿効果の定量評価システム。
 
 ---
 
-## TODO: 他者ツイート分析パイプライン（既存基盤の接続・拡張）
+## DONE: 他者ツイート分析パイプライン（buzz_content_analyzer.py）
 
-既存の収集基盤（key_persons.json / buzz_tweet_extractor / themed_buzz_extractor）を分析パイプラインに接続し、「他者のどういうツイートがウケるか」のパターンを抽出 → 自分のツイート生成にフィードバックする。
+`buzz_content_analyzer.py` として実装完了。Task Scheduler 06:45 登録済み。
 
-### 既存基盤（収集済み）
-- `key_persons.json`: トピック別キーパーソン453名（likes/RT/出現回数）
-- `buzz_tweet_extractor.py`: AI系バズツイートtop100（毎日06:30）
-- `themed_buzz_extractor.py`: テーマ特化バズツイート抽出
-- `zeitgeist_detector.py`: ムード・空気感の分類
+### 実装内容
+- `buzz-tweets-latest.json` → Groq LLM 7軸分類（content_type/originality/media_contribution/news_saturation/bip_authenticity/ai_citation_value/virality_factor）
+- `buzz_content_evaluations.json` に30日蓄積（GC付き）
+- key_persons.json照合（username逆引き）
+- content-strategy-ref.mdのマルチソース構造（ソースA: 自己 / ソースB: 他者 / 統合ガイダンス）
+- Obsidianレポート（buzz-eval-YYYY-MM-DD.md）
 
-### やること
-1. key_persons上位者を分析対象リストとして固定
-2. 他者ツイートにcontent_evaluator.pyと同じGroq LLM分類を適用
-3. 「何がウケるか」のパターン抽出（content_type × エンゲージメント相関）
-4. content-strategy-ref.mdに「他者分析からの知見」セクションを追加
-
-### 下流連携（パイプライン完成後）
-分析結果を既存リファレンスの更新精度向上に接続:
-- `discourse-freshness.md`: 週1/Grok推測 → 実データベースの議論進行度判定に移行
-- `zeitgeist-snapshot.json`: バズツイート分類精度の向上（他者のcontent_type傾向を反映）
-- `content-strategy-ref.md`: 自分のデータ+他者のパターンを統合した戦略リファレンスへ
-
-### 設計制約: マルチソース更新時のデータ保全
-複数ソース（Grok API / インフルエンサー分析 / 自己ツイート評価）が同じドキュメントを更新する際のルール:
-- **ソース別セクション分離**: 同一ドキュメント内でもソース由来を区別する。片方が他方を上書きしない
-- **追記ベース更新**: 更新は上書きではなく追記。古い情報の削除は明示的な判定ロジック経由のみ
-- **タイムスタンプ＋ソース明記**: 各データに「いつ・何由来」を必ず記録
-- **ベクトルの違いを尊重**: Grok=Web全体の定性推測、インフルエンサー分析=X上の定量実測。補完関係であり競合関係ではない
-
-### 優先度
-高（ツイート効果評価ツールの前提 + 下流3ドキュメントの精度に直結）
+### 下流連携（未着手）
+- `discourse-freshness.md`: 実データベースの議論進行度判定に移行
+- `zeitgeist-snapshot.json`: バズツイート分類精度の向上
+- `content-strategy-ref.md`: ソースA+Bの統合ガイダンス自動生成の高度化
 
 ---
 

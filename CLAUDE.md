@@ -172,6 +172,7 @@ x-auto/
 | スクリプト | スケジュール | 機能 | コスト/回 |
 |-----------|------------|------|----------|
 | `buzz_tweet_extractor.py` | 毎日 06:30 | twscrapeでAI関連バズツイート上位100件を抽出（zeitgeist補完用） | $0.00 |
+| `buzz_content_analyzer.py` | 毎日 06:45 | バズツイートGroq LLM 7軸分類 + 蓄積 + content-strategy-ref.mdソースB更新 | $0.00 |
 | `themed_buzz_extractor.py` | 手動実行 | テーマ特化バズツイート抽出（48h/min_faves:200/上位50件） | $0.00 |
 | `zeitgeist_detector.py` | 毎日 07:00 | ツイートのムード分類 → スナップショット生成（ツイート生成トーン調整用） | $0.00 |
 | `trend_detector.py` | 毎日 06:30 | frontier reportからトピック抽出 → X検索 → 下書き生成 + キーパーソン蓄積 + username自動解決 + GC | ~$0.53 |
@@ -184,6 +185,10 @@ x-auto/
 cd C:\Users\Tenormusica\x-auto\scripts
 python -X utf8 buzz_tweet_extractor.py            # バズツイート抽出
 python -X utf8 buzz_tweet_extractor.py --dry-run  # 検索のみ（保存なし）
+python -X utf8 buzz_content_analyzer.py           # バズツイートGroq分類 + 蓄積 + ref更新
+python -X utf8 buzz_content_analyzer.py --dry-run # 分類のみ（保存なし）
+python -X utf8 buzz_content_analyzer.py --force   # 本日分を全て再評価
+python -X utf8 buzz_content_analyzer.py --days 7  # 蓄積分析の対象日数指定
 python -X utf8 themed_buzz_extractor.py --theme ai-coding-role  # テーマ特化抽出
 python -X utf8 themed_buzz_extractor.py --list-themes           # テーマ一覧
 python -X utf8 zeitgeist_detector.py              # ムード分析（limit=50）
@@ -199,7 +204,8 @@ python -X utf8 content_evaluator.py --force        # 全ツイート再評価
 
 **出力先:**
 - Obsidian日報: `VaultD\...\x-analytics\daily\metrics-YYYY-MM-DD.md`
-- Obsidian評価: `VaultD\...\x-analytics\evaluations\eval-YYYY-MM-DD.md`
+- Obsidian評価(自己): `VaultD\...\x-analytics\evaluations\eval-YYYY-MM-DD.md`
+- Obsidian評価(バズ): `VaultD\...\x-analytics\evaluations\buzz-eval-YYYY-MM-DD.md`
 - Obsidianトレンド: `VaultD\...\x-analytics\trends\trends-YYYY-MM-DD.md`
 - Obsidianムード: `VaultD\...\x-analytics\zeitgeist\zeitgeist-YYYY-MM-DD.md`
 - 下書き: `x-auto\drafts\trend-YYYY-MM-DD-*.md`
@@ -290,3 +296,9 @@ Grok Imagineで動画生成→ダウンロード→Discord配信。CiCセッシ�
 - [2026-02-15] 締めの当事者性: 一般論的な業界分析（「1モデルで全部は終わりつつある」）で締めない。追ってきた人間の実感・驚きで終わる → `expression-rules.md` に「情報の伝達精度ルール」として追記済み
 - [2026-02-16] サムネイル生成スキル未参照: 「サムネイル作成」指示時にgenspark-thumbnail-generatorスキルを読まずに直接Geminiへ行った結果、ダウンロード先(D:\Downloads\)を誤認し30分ロス。スキルが存在するワークフローは必ず事前にスキルを読み込んでから作業開始すること
 - [2026-02-16] ダウンロード先はD:\Downloads\: Chromeのデフォルトダウンロード先。C:\Users\Tenormusica\Downloads\ではない。ブラウザダウンロード後のファイル確認は常にD:\Downloads\を最初に確認
+- [2026-02-18] 露出制御はトピックレベルで判定する: 単語を言い換えてもトピック自体がNGなら違反。「自動評価スクリプト」→「X APIで引っ張った」に変えても「自分のツイートのパフォーマンス分析」というトピックがNG。表現ではなくトピックを変更する → `anti-ai-rules.md` に「チェック粒度: 単語ではなくトピックで判定する」として追記済み
+- [2026-02-18] BIP ≠ 体験日記: BIPネタを「自分が実際にやったこと」に限定するとネタが狭くなり、zeitgeist・バズ分析の知見が活かせない。読者への情報価値が最優先、体験は信頼性ブーストであり必須条件ではない → `value-rules.md` に「BIPトピック選定の優先順位」として追記済み
+- [2026-02-18] 技術トピックの固有名詞必須: 「並列実行」「サブエージェント」等の一般概念だけだと、公式機能なのか個人の自作なのか読者が特定できない。固有名詞（Agent Teams, Task tool等）を入れて再現可能性を担保する → `expression-rules.md` に「技術トピックの固有名詞による特定」として追記済み
+- [2026-02-18] 柔らかさ > 情報精度: 固有名詞・数値・比較構文の精度を先に満たそうとすると「技術レポート」化して柔らかさが死ぬ。実装順序は「友達に話すトーンで書く → その中に情報を織り込む」。精度のために柔らかさを犠牲にしない → `expression-rules.md` に「文体の優先順位」として追記済み
+- [2026-02-18] 改行パターン固定化: 3案とも「1行+空行+1行+空行+1行」の同一パターンを繰り返した。format-rules.mdの禁止事項に明記されているにもかかわらず、ブロック構成テンプレートを機械的に全案にコピーした。全3行なら空行は締め前の1つだけが基本。複数案を出すときはパターンをバラす
+- [2026-02-18] **フロー省略の根本問題と構造的対策**: PROMPT.mdのステップ7（レビューサブエージェント2つ）を一切起動せずにツイートを提示した。「テスト生成」「草案段階」等の理由でレビューを省略する判断をAI側でしてはいけない。→ 対策4層: (1) SKILL.mdに「全手順履行の絶対原則」+フロー監視サブエージェント起動を義務化 (2) PROMPT.mdステップ4に「生成前の必須適用確認」 (3) PROMPT.mdステップ7に「CRITICAL GATE」 (4) review-tweetにセクション3.5表現スタイルチェック追加。どんな形のツイート生成指示でも全フローを履行し、フロー監視サブエージェントのPASSなしにユーザーに提示しない

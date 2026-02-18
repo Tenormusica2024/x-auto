@@ -506,8 +506,8 @@ def generate_strategy_ref(
 ):
     """ツイート生成スキルが参照する戦略サマリーを common/content-strategy-ref.md に出力
 
-    content_evaluator.pyの分析結果を、生成スキルが読みやすい形に要約。
-    どのcontent_typeが高パフォーマンスか、独自性・画像の効果など。
+    content_evaluator.pyの分析結果を「ソースA」セクションとして書き込む。
+    ソースB（buzz_content_analyzer.py由来）以降のセクションは保持する。
     """
     n = len([t for t in tweets if t["id"] in evals])
     if n == 0:
@@ -553,13 +553,12 @@ def generate_strategy_ref(
         best_sat = max(sat_analysis.items(), key=lambda kv: kv[1]["avg_w_score"])
         sat_insight = f"ニュース系は飽和度'{best_sat[0]}'が最もW-Score高い（{best_sat[1]['avg_w_score']}）"
 
-    # Markdown出力
-    md = f"""# コンテンツ戦略リファレンス
+    # ソースAセクションのMarkdown生成
+    source_a = f"""## ソースA: 自己ツイート分析（content_evaluator.py）
 
-content_evaluator.py が自動生成。ツイート生成スキルのネタ選定・方向性判断に使用。
 更新: {now_str()} | 分析対象: {n}件
 
-## コンテンツタイプ優先度（W-Score順）
+### コンテンツタイプ優先度（W-Score順）
 
 W-Score = Xアルゴリズム重み付きエンゲージメント。高いほど会話・保存・引用を生む。
 
@@ -582,20 +581,42 @@ W-Score = Xアルゴリズム重み付きエンゲージメント。高いほど
             guide = "会話参加用。W-Score低め"
         else:
             guide = ""
-        md += f"| {rank} | {ct} | {d['avg_w_score']} | {d['avg_imp']:,} | {d['count']} | {guide} |\n"
+        source_a += f"| {rank} | {ct} | {d['avg_w_score']} | {d['avg_imp']:,} | {d['count']} | {guide} |\n"
 
-    md += f"""
-## 独自性の効果
+    source_a += f"""
+### 独自性の効果
 
 {orig_insight if orig_insight else "データ不足"}
 
-## 画像の効果
+### 画像の効果
 
 {media_insight if media_insight else "データ不足"}
 
-## ニュース飽和度
+### ニュース飽和度
 
 {sat_insight if sat_insight else "ニュース系ツイートのデータ不足"}
+"""
+
+    # --- マルチソース対応: 既存ファイルのソースB以降を保持 ---
+    STRATEGY_REF_PATH.parent.mkdir(parents=True, exist_ok=True)
+    header = "# コンテンツ戦略リファレンス\n\ncontent_evaluator.py / buzz_content_analyzer.py が自動生成。ツイート生成スキルのネタ選定・方向性判断に使用。\n\n"
+    preserved_sections = ""
+
+    if STRATEGY_REF_PATH.exists():
+        existing = STRATEGY_REF_PATH.read_text(encoding="utf-8")
+        # ソースB以降のセクションを抽出して保持
+        source_b_marker = "## ソースB:"
+        idx = existing.find(source_b_marker)
+        if idx != -1:
+            preserved_sections = "\n---\n\n" + existing[idx:]
+
+    md = header + source_a
+    if preserved_sections:
+        md += preserved_sections
+    else:
+        # ソースBがまだない場合はソースAだけで完結
+        md += """
+---
 
 ## ネタ選定ガイダンス
 
@@ -605,9 +626,8 @@ W-Score = Xアルゴリズム重み付きエンゲージメント。高いほど
 - **画像は補強として有効**: imp増加効果あり。ただし画像に頼りすぎない（テキストの質が本質）
 """
 
-    STRATEGY_REF_PATH.parent.mkdir(parents=True, exist_ok=True)
     STRATEGY_REF_PATH.write_text(md, encoding="utf-8")
-    print(f"[OK] 戦略リファレンス更新: {STRATEGY_REF_PATH}")
+    print(f"[OK] 戦略リファレンス更新（ソースA）: {STRATEGY_REF_PATH}")
 
 
 # --- メイン ---
