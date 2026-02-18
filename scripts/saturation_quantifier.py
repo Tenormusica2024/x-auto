@@ -355,7 +355,11 @@ async def _call_groq_completion(
     )
     response.raise_for_status()
     result = response.json()
-    return result["choices"][0]["message"]["content"].strip()
+    choices = result.get("choices")
+    if not choices:
+        logger.warning("Groq APIが空のchoicesを返しました")
+        return None
+    return choices[0]["message"]["content"].strip()
 
 
 # === Groqでキーワード抽出 ===
@@ -371,6 +375,10 @@ async def extract_topic_keywords(
         外側ループ(3回): HTTP 429/タイムアウト/接続エラーのリトライ。
         各attempt内でJSONパース失敗時はtemperatureを上げて1回だけ再試行する。
         パース失敗2回（temperature=0.1 + 0.3）で次のattemptへ進む。
+
+        注意: HTTPリトライとパースリトライはattemptカウンタを共有する。
+        JSONパース失敗でattemptが消費されるため、HTTP 429の実質リトライ回数が
+        減る場合がある（両方が同時に起きるケースは極めて稀）。
     """
     prompt = KEYWORD_EXTRACTION_PROMPT.format(
         tweet_text=tweet_text[:TWEET_TEXT_MAX_CHARS]
@@ -559,6 +567,10 @@ async def measure_saturation(
     Returns:
         MeasurementResult: 正常計測結果（11フィールド）
         MeasurementError: エラー時（MeasurementResult + errorキー）
+
+    Note:
+        戻り値はdictリテラルであり、TypedDictクラスのインスタンスではない。
+        正常/エラーの判定は ``"error" in result`` で行うこと（isinstance不可）。
     """
     # レート制限チェック
     available, next_time = check_rate_limit()
