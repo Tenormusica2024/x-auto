@@ -22,12 +22,14 @@ LLMの推測（first_mover/early/mainstream/late/rehash）を定量データで�
 
 import asyncio
 import json
+import logging
 import math
 import os
 import re
 import sqlite3
 import sys
 import argparse
+from dataclasses import dataclass, field
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from collections import Counter
@@ -123,6 +125,38 @@ LEVEL_DEFAULT = "rehash"
 # 時間帯分布のバケットサイズ（時間単位）
 HOURLY_BUCKET_SIZE = 6
 
+# 重みの合計が1.0であることを保証（定数変更時の安全網）
+assert abs((WEIGHT_COUNT + WEIGHT_TIME + WEIGHT_KP) - 1.0) < 1e-9, (
+    f"重みの合計が1.0ではありません: {WEIGHT_COUNT + WEIGHT_TIME + WEIGHT_KP}"
+)
+
+# === ロガー設定 ===
+logger = logging.getLogger("saturation_quantifier")
+
+
+def _setup_logger() -> None:
+    """スクリプト直接実行時のみハンドラを設定する（ライブラリ利用時はNullHandler）"""
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(
+            logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
+        )
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+
+
+# === 検索コンテキスト（_run_search_query / _process_search_tweet の引数集約） ===
+
+@dataclass
+class SearchContext:
+    """twscrape検索で共有される可変状態をまとめるコンテナ"""
+    all_tweets: dict = field(default_factory=dict)
+    kp_found: list = field(default_factory=list)
+    kp_found_usernames: set = field(default_factory=set)
+    key_persons: dict = field(default_factory=dict)
+    cutoff_dt: datetime | None = None
+
+
 # キーワード抽出プロンプト
 KEYWORD_EXTRACTION_PROMPT = """\
 あなたはX(Twitter)のニュース分析の専門家です。
@@ -158,11 +192,6 @@ X検索用のキーワードを生成してください。
 _JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 
 
-def log(msg: str, level: str = "INFO"):
-    timestamp = datetime.now(JST).strftime("%H:%M:%S")
-    print(f"[{timestamp}] [{level}] {msg}")
-
-
 # === レート制限チェック（buzz_tweet_extractor.pyと同じロジック） ===
 
 def check_rate_limit() -> tuple[bool, str | None]:
@@ -195,7 +224,7 @@ def check_rate_limit() -> tuple[bool, str | None]:
             return False, lock_time_jst.strftime("%H:%M:%S")
 
     except Exception as e:
-        log(f"accounts.db読み込みエラー: {e}", "WARNING")
+        logger.warning("accounts.db読み込みエラー: %s", e)
         return True, None
     finally:
         if conn:
@@ -276,24 +305,48 @@ async def extract_topic_keywords(
                 content = result["choices"][0]["message"]["content"].strip()
 
                 parsed = _extract_json_from_llm(content)
-                if parsed is None:
-                    log(f"キーワード抽出パースエラー: JSONブロックが見つかりません", "ERROR")
-                    return None
-                return parsed
+                if parsed is not None:
+                    return parsed
+
+                # JSONパース失敗: temperature上げて1回リトライ
+                if attempt < 2:
+                    logger.warning("JSONパース失敗、temperature=0.3でリトライ (attempt %d)", attempt + 1)
+                    response = await client.post(
+                        GROQ_API_URL,
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "model": GROQ_MODEL,
+                            "messages": [{"role": "user", "content": prompt}],
+                            "temperature": 0.3,
+                            "max_tokens": 300,
+                        },
+                    )
+                    response.raise_for_status()
+                    retry_result = response.json()
+                    retry_content = retry_result["choices"][0]["message"]["content"].strip()
+                    retry_parsed = _extract_json_from_llm(retry_content)
+                    if retry_parsed is not None:
+                        return retry_parsed
+
+                logger.error("キーワード抽出パースエラー: JSONブロックが見つかりません")
+                return None
 
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 429:
                     wait = BACKOFF_SCHEDULE[min(attempt, len(BACKOFF_SCHEDULE) - 1)]
-                    log(f"Rate limited, {wait}秒待機...", "WARNING")
+                    logger.warning("Rate limited, %d秒待機...", wait)
                     await asyncio.sleep(wait)
                     continue
-                log(f"HTTP error: {e.response.status_code}", "ERROR")
+                logger.error("HTTP error: %d", e.response.status_code)
                 return None
             except (json.JSONDecodeError, KeyError) as e:
-                log(f"キーワード抽出パースエラー: {e}", "ERROR")
+                logger.error("キーワード抽出パースエラー: %s", e)
                 return None
             except Exception as e:
-                log(f"キーワード抽出エラー: {e}", "ERROR")
+                logger.error("キーワード抽出エラー: %s", e)
                 return None
     finally:
         if own_client:
@@ -304,37 +357,30 @@ async def extract_topic_keywords(
 
 # === ツイート処理ヘルパー（Q1/Q2共通） ===
 
-def _process_search_tweet(
-    tweet,
-    all_tweets: dict,
-    key_persons: dict[str, dict[str, Any]],
-    kp_found_usernames: set[str],
-    kp_found: list[dict],
-    cutoff_dt: datetime,
-) -> bool:
-    """検索結果の1ツイートを処理し、all_tweetsとkp_foundに追加する。
+def _process_search_tweet(tweet, ctx: SearchContext) -> bool:
+    """検索結果の1ツイートを処理し、ctx内のall_tweetsとkp_foundに追加する。
 
     Returns:
         True: 新規ツイートとして追加された / False: 重複or範囲外でスキップ
     """
     tid = tweet.id
-    if tid in all_tweets:
+    if tid in ctx.all_tweets:
         return False
 
     # 日付フィルタ: lookback_hours以内のツイートのみカウント
-    if tweet.date:
+    if tweet.date and ctx.cutoff_dt:
         tweet_dt = (
             tweet.date.astimezone(JST)
             if tweet.date.tzinfo
             else tweet.date.replace(tzinfo=timezone.utc).astimezone(JST)
         )
-        if tweet_dt < cutoff_dt:
+        if tweet_dt < ctx.cutoff_dt:
             return False
 
     uname = tweet.user.username.lower() if tweet.user else ""
-    is_kp = uname in key_persons
+    is_kp = uname in ctx.key_persons
 
-    all_tweets[tid] = {
+    ctx.all_tweets[tid] = {
         "created_at": tweet.date.isoformat() if tweet.date else "",
         "username": uname,
         "is_key_person": is_kp,
@@ -342,11 +388,11 @@ def _process_search_tweet(
     }
 
     # KP重複チェック: setで O(1) 判定
-    if is_kp and uname not in kp_found_usernames:
-        kp_found_usernames.add(uname)
-        kp_found.append({
+    if is_kp and uname not in ctx.kp_found_usernames:
+        ctx.kp_found_usernames.add(uname)
+        ctx.kp_found.append({
             "username": uname,
-            "appearances": key_persons[uname].get("total_appearances", 0),
+            "appearances": ctx.key_persons[uname].get("total_appearances", 0),
         })
 
     return True
@@ -354,15 +400,7 @@ def _process_search_tweet(
 
 # === twscrapeで1クエリ実行 ===
 
-async def _run_search_query(
-    api: API,
-    query: str,
-    all_tweets: dict,
-    key_persons: dict[str, dict[str, Any]],
-    kp_found_usernames: set[str],
-    kp_found: list[dict],
-    cutoff_dt: datetime,
-) -> int:
+async def _run_search_query(api: API, query: str, ctx: SearchContext) -> int:
     """twscrapeで1つの検索クエリを実行し、新規追加件数を返す。
 
     レート制限検出時は -1 を返す。
@@ -370,23 +408,20 @@ async def _run_search_query(
     added = 0
     try:
         async for tweet in api.search(query, limit=SATURATION_QUERY_LIMIT):
-            if _process_search_tweet(
-                tweet, all_tweets, key_persons,
-                kp_found_usernames, kp_found, cutoff_dt,
-            ):
+            if _process_search_tweet(tweet, ctx):
                 added += 1
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 429:
-            log("レート制限検出（HTTP 429）", "WARNING")
+            logger.warning("レート制限検出（HTTP 429）")
             return -1
-        log(f"検索エラー（HTTP {e.response.status_code}）: {e}", "ERROR")
+        logger.error("検索エラー（HTTP %d）: %s", e.response.status_code, e)
     except Exception as e:
         # twscrape内部で発生する非HTTPのレート制限エラーもHTTPStatusErrorでない場合がある
         err_str = str(e).lower()
         if "429" in err_str or "rate" in err_str:
-            log("レート制限検出", "WARNING")
+            logger.warning("レート制限検出")
             return -1
-        log(f"検索エラー: {e}", "ERROR")
+        logger.error("検索エラー: %s", e)
     return added
 
 
@@ -423,8 +458,13 @@ async def measure_saturation(
     secondary_keywords: list[str],
     key_persons: dict[str, dict[str, Any]],
     lookback_hours: int = 72,
+    api: API | None = None,
 ) -> dict:
     """twscrapeでトピックの飽和度を実測する。
+
+    Args:
+        api: twscrape APIインスタンス。未指定時は内部生成する。
+             複数回呼び出す場合は外部で生成して渡すと効率的。
 
     Returns:
         {
@@ -444,36 +484,34 @@ async def measure_saturation(
     # レート制限チェック
     available, next_time = check_rate_limit()
     if not available:
-        log(f"twscrapeレート制限中（解除: {next_time}）", "WARNING")
+        logger.warning("twscrapeレート制限中（解除: %s）", next_time)
         return _empty_result("rate_limited")
 
-    api = API(str(ACCOUNTS_DB))
+    if api is None:
+        api = API(str(ACCOUNTS_DB))
 
     now = datetime.now(JST)
     since = (now - timedelta(hours=lookback_hours)).strftime("%Y-%m-%d")
     until = (now + timedelta(days=1)).strftime("%Y-%m-%d")
-    cutoff_dt = now - timedelta(hours=lookback_hours)
 
-    all_tweets: dict = {}
-    kp_found: list[dict] = []
-    kp_found_usernames: set[str] = set()
+    ctx = SearchContext(
+        key_persons=key_persons,
+        cutoff_dt=now - timedelta(hours=lookback_hours),
+    )
 
     # --- Q1: メインキーワード（最も特定性が高い） ---
     primary_query = (
         f'{primary_keyword} -filter:retweets lang:ja '
         f"since:{since} until:{until}"
     )
-    log(f"  Q1: {primary_query}")
+    logger.info("  Q1: %s", primary_query)
 
-    q1_result = await _run_search_query(
-        api, primary_query, all_tweets, key_persons,
-        kp_found_usernames, kp_found, cutoff_dt,
-    )
+    q1_result = await _run_search_query(api, primary_query, ctx)
     if q1_result == -1:
         return _empty_result("rate_limited_during_search")
 
-    primary_count = len(all_tweets)
-    log(f"  Q1結果: {primary_count}件")
+    primary_count = len(ctx.all_tweets)
+    logger.info("  Q1結果: %d件", primary_count)
 
     await asyncio.sleep(QUERY_DELAY)
 
@@ -485,22 +523,19 @@ async def measure_saturation(
             f'{sec_kw} -filter:retweets lang:ja '
             f"since:{since} until:{until}"
         )
-        log(f"  Q2: {secondary_query}")
+        logger.info("  Q2: %s", secondary_query)
 
-        q2_result = await _run_search_query(
-            api, secondary_query, all_tweets, key_persons,
-            kp_found_usernames, kp_found, cutoff_dt,
-        )
+        q2_result = await _run_search_query(api, secondary_query, ctx)
         if q2_result >= 0:
             secondary_count = q2_result
 
-    log(f"  Q2結果: +{secondary_count}件（合計: {len(all_tweets)}件）")
+    logger.info("  Q2結果: +%d件（合計: %d件）", secondary_count, len(ctx.all_tweets))
 
     # --- 統計集計 + スコア算出 ---
-    total_count = len(all_tweets)
-    kp_count = len(kp_found)
+    total_count = len(ctx.all_tweets)
+    kp_count = len(ctx.kp_found)
 
-    hourly_dist, earliest = _aggregate_tweet_stats(all_tweets, now)
+    hourly_dist, earliest = _aggregate_tweet_stats(ctx.all_tweets, now)
 
     saturation_score, suggested_level, confidence = _calculate_saturation(
         total_count=total_count,
@@ -516,7 +551,7 @@ async def measure_saturation(
         "secondary_count": secondary_count,
         "total_count": total_count,
         "key_person_count": kp_count,
-        "key_persons_found": kp_found,
+        "key_persons_found": ctx.kp_found,
         "earliest_mention": earliest.isoformat() if earliest else None,
         "hourly_distribution": dict(hourly_dist),
         "saturation_score": round(saturation_score, 3),
@@ -604,7 +639,7 @@ def get_ai_news_tweets(limit: int = 5, tweet_id: str | None = None) -> list[dict
     tweet_detailsからテキスト情報も結合する。
     """
     if not EVAL_PATH.exists():
-        log("content_evaluations.json が見つかりません", "ERROR")
+        logger.error("content_evaluations.json が見つかりません")
         return []
 
     eval_data = json.loads(EVAL_PATH.read_text(encoding="utf-8"))
@@ -627,7 +662,7 @@ def get_ai_news_tweets(limit: int = 5, tweet_id: str | None = None) -> list[dict
                 "text": text_map.get(tweet_id, ""),
                 "news_saturation_llm": ev.get("news_saturation", "n/a"),
             }]
-        log(f"tweet_id={tweet_id} はai_newsではないか見つかりません", "WARNING")
+        logger.warning("tweet_id=%s はai_newsではないか見つかりません", tweet_id)
         return []
 
     # ai_newsのみ抽出、最新順（evaluated_at降順）
@@ -661,33 +696,36 @@ async def quantify_saturation(
         各ツイートの計測結果リスト
     """
     key_persons = load_key_persons()
-    log(f"キーパーソンDB: {len(key_persons)}名ロード済み")
+    logger.info("キーパーソンDB: %d名ロード済み", len(key_persons))
 
     results = []
+
+    # twscrape APIインスタンスをループ全体で共有（接続再利用）
+    tw_api = API(str(ACCOUNTS_DB))
 
     # httpxクライアントをループ全体で共有（接続プール再利用）
     async with httpx.AsyncClient(timeout=30.0) as http_client:
         for i, tweet in enumerate(tweets):
-            log(f"\n[{i+1}/{len(tweets)}] {tweet['id'][:12]}...")
+            logger.info("[%d/%d] %s...", i + 1, len(tweets), tweet["id"][:12])
             preview = tweet["text"][:80].replace("\n", " ")
-            log(f"  テキスト: {preview}...")
+            logger.info("  テキスト: %s...", preview)
 
             # Step 1: キーワード抽出
             keywords = await extract_topic_keywords(
                 tweet["text"], api_key, http_client=http_client
             )
             if not keywords:
-                log("  キーワード抽出失敗 → スキップ", "WARNING")
+                logger.warning("  キーワード抽出失敗 → スキップ")
                 results.append({
                     "tweet_id": tweet["id"],
                     "error": "keyword_extraction_failed",
                 })
                 continue
 
-            log(f"  トピック: {keywords.get('topic', '?')}")
-            log(f"  Primary: {keywords.get('primary_keyword', '?')}")
-            log(f"  Secondary: {keywords.get('secondary_keywords', [])}")
-            log(f"  LLM判定: {tweet.get('news_saturation_llm', '?')}")
+            logger.info("  トピック: %s", keywords.get("topic", "?"))
+            logger.info("  Primary: %s", keywords.get("primary_keyword", "?"))
+            logger.info("  Secondary: %s", keywords.get("secondary_keywords", []))
+            logger.info("  LLM判定: %s", tweet.get("news_saturation_llm", "?"))
 
             if dry_run:
                 results.append({
@@ -698,11 +736,12 @@ async def quantify_saturation(
                 })
                 continue
 
-            # Step 2: twscrape計測
+            # Step 2: twscrape計測（APIインスタンスを共有）
             measurement = await measure_saturation(
                 primary_keyword=keywords["primary_keyword"],
                 secondary_keywords=keywords.get("secondary_keywords", []),
                 key_persons=key_persons,
+                api=tw_api,
             )
 
             # LLM判定との比較
@@ -710,9 +749,12 @@ async def quantify_saturation(
             quant_level = measurement["suggested_level"]
             match_status = "MATCH" if llm_level == quant_level else "DIFF"
 
-            log(f"  計測結果: {measurement['total_count']}件 → {quant_level} (score={measurement['saturation_score']:.3f})")
-            log(f"  KP言及: {measurement['key_person_count']}名")
-            log(f"  LLM={llm_level} vs 実測={quant_level} [{match_status}]")
+            logger.info(
+                "  計測結果: %d件 → %s (score=%.3f)",
+                measurement["total_count"], quant_level, measurement["saturation_score"],
+            )
+            logger.info("  KP言及: %d名", measurement["key_person_count"])
+            logger.info("  LLM=%s vs 実測=%s [%s]", llm_level, quant_level, match_status)
 
             results.append({
                 "tweet_id": tweet["id"],
@@ -732,10 +774,10 @@ async def quantify_saturation(
 async def async_main(args):
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        log("GROQ_API_KEY が環境変数に未設定", "ERROR")
+        logger.error("GROQ_API_KEY が環境変数に未設定")
         return 1
 
-    log("=== ニュース飽和度 定量計測 ===")
+    logger.info("=== ニュース飽和度 定量計測 ===")
 
     # 対象ツイート取得
     tweets = get_ai_news_tweets(
@@ -744,11 +786,11 @@ async def async_main(args):
     )
 
     if not tweets:
-        log("計測対象のai_newsツイートがありません", "WARNING")
-        log("content_evaluator.py を先に実行してください", "HINT")
+        logger.warning("計測対象のai_newsツイートがありません")
+        logger.info("content_evaluator.py を先に実行してください")
         return 0
 
-    log(f"対象: {len(tweets)}件のai_newsツイート")
+    logger.info("対象: %d件のai_newsツイート", len(tweets))
 
     # 計測実行
     results = await quantify_saturation(
@@ -756,23 +798,26 @@ async def async_main(args):
     )
 
     # 結果サマリー
-    log("\n=== 計測結果サマリー ===")
+    logger.info("=== 計測結果サマリー ===")
     match_count = sum(1 for r in results if r.get("match_status") == "MATCH")
     diff_count = sum(1 for r in results if r.get("match_status") == "DIFF")
     error_count = sum(1 for r in results if r.get("error"))
 
-    log(f"  計測成功: {match_count + diff_count}件（一致: {match_count}, 不一致: {diff_count}）")
+    logger.info(
+        "  計測成功: %d件（一致: %d, 不一致: %d）",
+        match_count + diff_count, match_count, diff_count,
+    )
     if error_count:
-        log(f"  エラー: {error_count}件")
+        logger.warning("  エラー: %d件", error_count)
 
     # 不一致の詳細
     for r in results:
         if r.get("match_status") == "DIFF":
             m = r["measurement"]
-            log(
-                f"  DIFF: {r['tweet_id'][:12]}... "
-                f"LLM={r['llm_level']} vs 実測={m['suggested_level']} "
-                f"(count={m['total_count']}, score={m['saturation_score']:.3f})"
+            logger.info(
+                "  DIFF: %s... LLM=%s vs 実測=%s (count=%d, score=%.3f)",
+                r["tweet_id"][:12], r["llm_level"],
+                m["suggested_level"], m["total_count"], m["saturation_score"],
             )
 
     # JSON出力（--outputオプション時）
@@ -789,13 +834,15 @@ async def async_main(args):
             json.dumps(output_data, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        log(f"結果保存: {output_path}")
+        logger.info("結果保存: %s", output_path)
 
-    log("\n=== 完了 ===")
+    logger.info("=== 完了 ===")
     return 0
 
 
 def main():
+    _setup_logger()
+
     parser = argparse.ArgumentParser(description="ニュース飽和度の定量計測")
     parser.add_argument("--dry-run", action="store_true", help="キーワード抽出のみ（twscrape検索なし）")
     parser.add_argument("--tweet-id", type=str, help="特定ツイートIDを計測")
