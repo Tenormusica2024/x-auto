@@ -22,6 +22,28 @@ https://x.com/compose/tweet
 1. テキストエリアにツイート本文をペースト
 2. 引用リンクがある場合は本文末尾に追加
 
+### ステップ3.5: 画像添付（画像がある場合）
+
+**優先順位:**
+1. **PowerShellクリップボード + Ctrl+V（推奨）**
+2. JS DataTransfer API（base64サイズ制限あり）
+3. dialog_filler.py（フォールバック）
+
+**推奨手順（PowerShellクリップボード方式）:**
+```bash
+powershell -File - <<'PS1'
+Add-Type -Assembly System.Windows.Forms
+Add-Type -Assembly System.Drawing
+$img = [System.Drawing.Image]::FromFile("IMAGE_PATH")
+[System.Windows.Forms.Clipboard]::SetImage($img)
+Write-Host "Image copied to clipboard"
+$img.Dispose()
+PS1
+```
+→ テキストエリアをクリック → `key("ctrl+v")` → wait(3秒) → スクショ確認
+
+**詳細な手順・フォールバック方法:** `~/.claude/skills/x-draft-saver/SKILL.md` Phase 3 参照
+
 ### ステップ4: 投稿前確認
 1. スクリーンショットを撮影
 2. 以下を確認:
