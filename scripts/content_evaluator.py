@@ -495,6 +495,76 @@ def generate_eval_report(
 
 STRATEGY_REF_PATH = Path(r"C:\Users\Tenormusica\x-auto\common\content-strategy-ref.md")
 
+# サンプル数が少ないときの信頼度表示閾値
+_MIN_SAMPLES_RELIABLE = 5
+_MIN_SAMPLES_USABLE = 3
+
+
+def _generate_dynamic_guidance(
+    ct: str,
+    ct_data: dict,
+    type_ranking: list[tuple[str, dict]],
+    total_count: int,
+) -> str:
+    """content_typeごとのガイダンスを蓄積データから動的に生成する。
+
+    ハードコードされた文言ではなく、データの相対的な位置関係から文言を導出。
+    サンプル数が少ない場合は信頼度注記を付与。
+    """
+    count = ct_data["count"]
+    avg_ws = ct_data["avg_w_score"]
+    avg_imp = ct_data["avg_imp"]
+
+    # サンプル数が少なすぎる場合
+    if count < _MIN_SAMPLES_USABLE:
+        return f"データ不足（{count}件）"
+
+    # 全タイプのW-Score平均と比較
+    all_ws = [d["avg_w_score"] for _, d in type_ranking]
+    all_imp = [d["avg_imp"] for _, d in type_ranking]
+    overall_avg_ws = sum(all_ws) / len(all_ws) if all_ws else 0
+    overall_avg_imp = sum(all_imp) / len(all_imp) if all_imp else 0
+
+    # 順位（1-indexed）
+    rank = next(
+        (i + 1 for i, (c, _) in enumerate(type_ranking) if c == ct),
+        len(type_ranking),
+    )
+    total_types = len(type_ranking)
+
+    # W-ScoreとImpの相対評価
+    ws_ratio = avg_ws / overall_avg_ws if overall_avg_ws else 1.0
+    imp_ratio = avg_imp / overall_avg_imp if overall_avg_imp else 1.0
+
+    parts = []
+
+    # 順位に基づくポジション表現
+    if rank == 1:
+        parts.append("W-Score最高")
+    elif rank <= total_types * 0.4:
+        parts.append("W-Score上位")
+    elif rank >= total_types * 0.8:
+        parts.append("W-Score下位")
+
+    # W-Score vs Imp の乖離パターン（タイプの特性を自動判定）
+    if ws_ratio >= 1.3 and imp_ratio < 0.8:
+        # W-Score高い + imp低い = 深い反応あるが拡散は弱い
+        parts.append("深い反応を生むが拡散力は弱い")
+    elif ws_ratio < 0.7 and imp_ratio >= 1.3:
+        # W-Score低い + imp高い = 広くリーチするが浅い
+        parts.append("impは稼げるがW-Scoreは低め")
+    elif ws_ratio >= 1.2 and imp_ratio >= 1.2:
+        # 両方高い
+        parts.append("拡散力・反応とも高パフォーマンス")
+    elif ws_ratio < 0.7 and imp_ratio < 0.7:
+        parts.append("拡散・反応とも低調")
+
+    # サンプル数注記
+    if count < _MIN_SAMPLES_RELIABLE:
+        parts.append(f"n={count}のため参考値")
+
+    return "。".join(parts) if parts else ""
+
 
 def generate_strategy_ref(
     tweets: list[dict],
@@ -566,21 +636,7 @@ W-Score = Xアルゴリズム重み付きエンゲージメント。高いほど
 |--------|--------|------------|---------|------|-----------|
 """
     for rank, (ct, d) in enumerate(type_ranking, 1):
-        # タイプ別のガイダンスを生成
-        if ct == "bip":
-            guide = "主力。具体的な体験・数字を入れると高スコア"
-        elif ct == "engagement":
-            guide = "フォロワー維持に必要。W-Scoreは高いが拡散力は低い"
-        elif ct == "opinion":
-            guide = "独自の切り口が重要。一般論だとスコア低下"
-        elif ct == "ai_news":
-            guide = "impは稼げるがW-Scoreは低め。速報性と独自分析が鍵"
-        elif ct == "how-to":
-            guide = "再現可能な手順は高いAI引用価値"
-        elif ct == "quote_rt":
-            guide = "会話参加用。W-Score低め"
-        else:
-            guide = ""
+        guide = _generate_dynamic_guidance(ct, d, type_ranking, n)
         source_a += f"| {rank} | {ct} | {d['avg_w_score']} | {d['avg_imp']:,} | {d['count']} | {guide} |\n"
 
     source_a += f"""
