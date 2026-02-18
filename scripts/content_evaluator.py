@@ -880,6 +880,41 @@ async def async_main(args):
         if len(report) > 1000:
             print(f"\n... ({len(report)}文字)")
 
+    # --- オプション: ニュース飽和度の定量計測 ---
+    if getattr(args, "quantitative", False):
+        print(f"\n[EXTRA] ニュース飽和度 定量計測...")
+        try:
+            from saturation_quantifier import get_ai_news_tweets, quantify_saturation
+
+            quant_limit = getattr(args, "quant_limit", 5)
+            ai_news_tweets = get_ai_news_tweets(limit=quant_limit)
+            if ai_news_tweets:
+                quant_results = await quantify_saturation(
+                    ai_news_tweets, api_key, dry_run=args.dry_run,
+                )
+                # 計測結果をevalデータに反映
+                if not args.dry_run:
+                    for qr in quant_results:
+                        tid = qr.get("tweet_id")
+                        m = qr.get("measurement")
+                        if tid and m and tid in eval_data["evaluations"]:
+                            eval_data["evaluations"][tid]["saturation_quantitative"] = {
+                                "score": m["saturation_score"],
+                                "level": m["suggested_level"],
+                                "total_count": m["total_count"],
+                                "kp_count": m["key_person_count"],
+                                "confidence": m["confidence"],
+                                "primary_keyword": m.get("primary_keyword", ""),
+                            }
+                    save_evaluations(eval_data)
+                    print(f"[OK] {len(ai_news_tweets)}件の定量計測データを保存")
+            else:
+                print("[INFO] 定量計測対象のai_newsなし")
+        except ImportError as e:
+            print(f"[WARN] saturation_quantifier.py が見つかりません: {e}")
+        except Exception as e:
+            print(f"[WARN] 定量計測でエラー: {e}")
+
     print(f"\n=== 完了 ===")
     print(f"評価済み: {len(evals)}件")
 
@@ -888,6 +923,10 @@ def main():
     parser = argparse.ArgumentParser(description="X コンテンツ多次元評価分析")
     parser.add_argument("--dry-run", action="store_true", help="分類のみ（保存・レポートなし）")
     parser.add_argument("--force", action="store_true", help="全ツイート再評価")
+    parser.add_argument("--quantitative", action="store_true",
+                        help="ai_newsのニュース飽和度をtwscrapeで定量計測")
+    parser.add_argument("--quant-limit", type=int, default=5,
+                        help="定量計測の対象件数（デフォルト: 5）")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

@@ -72,7 +72,12 @@ ai_citation_valueを5項目チェックリスト方式に改修済み:
 - `bip_authenticity`（1-5）でBIPの質を段階評価
 - `news_saturation`で速報性を段階評価（first_mover/early/mainstream/late/rehash）
 
-### ニュース飽和度の定量化（将来）
-- 現状はGroq LLMの推測のみ
-- twscrapeで同トピックの既存ツイート件数を実測する方式
-- buzz-tweets-latest.json / key_persons.json との照合
+### DONE: ニュース飽和度の定量化
+
+`saturation_quantifier.py` として実装。
+
+- Groq LLMでai_newsツイートからトピックキーワードを抽出（2-4語の特定性の高いフレーズ）
+- twscrapeで同トピックのツイート件数を72h以内で実測
+- 件数シグナル（40%）+ 時間シグナル（35%）+ キーパーソンシグナル（25%）の重み付け合成でスコア算出
+- content_evaluator.py `--quantitative` フラグで統合実行可能
+- 結果は content_evaluations.json の `saturation_quantitative` フィールドに保存
