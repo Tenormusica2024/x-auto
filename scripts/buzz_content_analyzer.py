@@ -645,6 +645,44 @@ SOURCE_B_MARKER = "## ソースB: 他者バズツイート分析（buzz_content_
 INTEGRATED_MARKER = "## 統合ネタ選定ガイダンス"
 
 
+def _parse_source_a_types() -> dict[str, dict]:
+    """content-strategy-ref.mdのソースAテーブルからcontent_type別W-Scoreを解析する。
+
+    Returns:
+        {"bip": {"w_score": 18.0, "imp": 450, "count": 8, "rank": 2}, ...}
+    """
+    if not STRATEGY_REF_PATH.exists():
+        return {}
+    text = STRATEGY_REF_PATH.read_text(encoding="utf-8")
+    # ソースAのコンテンツタイプ優先度テーブルを探す
+    source_a_start = text.find("## ソースA:")
+    source_b_start = text.find("## ソースB:")
+    if source_a_start == -1:
+        return {}
+    section = text[source_a_start:source_b_start] if source_b_start != -1 else text[source_a_start:]
+    # テーブル行を解析（| 優先度 | タイプ | 平均W-Score | 平均imp | 件数 | ガイダンス |）
+    result = {}
+    for line in section.split("\n"):
+        line = line.strip()
+        if not line.startswith("|") or "優先度" in line or "---" in line:
+            continue
+        cols = [c.strip() for c in line.split("|")]
+        # cols: ['', '1', 'engagement', '23.0', '86', '5', 'ガイダンス文', '']
+        if len(cols) < 7:
+            continue
+        try:
+            rank = int(cols[1])
+            ct = cols[2]
+            w_score = float(cols[3])
+            # impにカンマが含まれる場合を処理
+            imp = int(cols[4].replace(",", ""))
+            count = int(cols[5])
+            result[ct] = {"w_score": w_score, "imp": imp, "count": count, "rank": rank}
+        except (ValueError, IndexError):
+            continue
+    return result
+
+
 def update_strategy_ref_buzz_section(
     type_analysis: dict,
     orig_analysis: dict,
@@ -699,10 +737,12 @@ def update_strategy_ref_buzz_section(
 
     section_b += "\n"
 
-    # 統合ガイダンスセクション
-    # content_type上位3つ
+    # 統合ガイダンスセクション — ソースAのデータも突合して動的生成
+    source_a = _parse_source_a_types()
+
+    # ソースB: content_type上位3つ（他者バズ）
     top_types = sorted(type_analysis, key=lambda k: type_analysis[k]["avg_eng_score"], reverse=True)[:3]
-    # バズ要因上位3つ
+    # ソースB: バズ要因上位3つ
     top_factors = sorted(virality_analysis, key=lambda k: virality_analysis[k]["avg_eng_score"], reverse=True)[:3] if virality_analysis else []
 
     integrated = f"""{INTEGRATED_MARKER}
@@ -712,13 +752,60 @@ def update_strategy_ref_buzz_section(
 - **バズしやすいcontent_type**: {', '.join(top_types)}（他者のバズ分布から）
 - **バズの主要因**: {', '.join(top_factors)}（高エンゲージメントツイートの共通要素）
 """
+    # ソースAとソースBの突合: 自分が得意 × 他者もバズる = 最強カテゴリを自動検出
+    if source_a and type_analysis:
+        # 両方に存在するcontent_typeで突合
+        common_types = set(source_a.keys()) & set(type_analysis.keys())
+        if common_types:
+            # ソースAのW-Score中央値・ソースBのeng_score中央値を基準に分類
+            a_scores = [source_a[ct]["w_score"] for ct in common_types]
+            b_scores = [type_analysis[ct]["avg_eng_score"] for ct in common_types]
+            a_median = sorted(a_scores)[len(a_scores) // 2]
+            b_median = sorted(b_scores)[len(b_scores) // 2]
+
+            # 4象限に分類
+            strong_both = []  # 自分も得意 + 他者もバズる
+            opportunity = []   # 自分は弱い + 他者はバズる（改善チャンス）
+            niche = []         # 自分は得意 + 他者はバズらない（ニッチ強み）
+            for ct in sorted(common_types):
+                a_ws = source_a[ct]["w_score"]
+                b_eng = type_analysis[ct]["avg_eng_score"]
+                if a_ws >= a_median and b_eng >= b_median:
+                    strong_both.append(ct)
+                elif a_ws < a_median and b_eng >= b_median:
+                    opportunity.append(ct)
+                elif a_ws >= a_median and b_eng < b_median:
+                    niche.append(ct)
+
+            if strong_both:
+                integrated += f"- **最強カテゴリ（自分も得意+他者もバズる）**: {', '.join(strong_both)}\n"
+            if opportunity:
+                integrated += f"- **改善チャンス（他者はバズるが自分は弱い）**: {', '.join(opportunity)}\n"
+            if niche:
+                integrated += f"- **ニッチ強み（自分は得意だが他者は少ない）**: {', '.join(niche)}\n"
+
+    # 独自性とバズの関係（ソースBデータ）
     if orig_analysis:
         high_scores = [s for s in sorted(orig_analysis.keys()) if s >= 4]
         if high_scores:
             high_avg = sum(orig_analysis[s]["avg_eng_score"] for s in high_scores) / len(high_scores)
             integrated += f"- **独自性とバズの関係**: 独自性4-5の他者ツイートは平均eng {high_avg:,.0f}\n"
-    integrated += "- **BIP・体験談を優先**: 独自体験は代替不可。具体的な数字・苦労・発見を含めると高スコア\n"
-    integrated += "- **ニュースは速報性が命**: 飽和度がmainstream以降だとパフォーマンス低下\n"
+
+    # ソースAデータからBIP・ニュース系の自分の実績を反映
+    if source_a:
+        bip_data = source_a.get("bip")
+        news_data = source_a.get("ai_news")
+        if bip_data and bip_data["count"] >= 3:
+            integrated += f"- **BIP・体験談を優先**: 自分のBIPはW-Score {bip_data['w_score']}（{bip_data['count']}件）。独自体験は代替不可\n"
+        else:
+            integrated += "- **BIP・体験談を優先**: 独自体験は代替不可。具体的な数字・苦労・発見を含めると高スコア\n"
+        if news_data and news_data["count"] >= 3:
+            integrated += f"- **ニュースは速報性が命**: 自分のai_newsはW-Score {news_data['w_score']}（{news_data['count']}件）。飽和度mainstream以降はパフォーマンス低下\n"
+        else:
+            integrated += "- **ニュースは速報性が命**: 飽和度がmainstream以降だとパフォーマンス低下\n"
+    else:
+        integrated += "- **BIP・体験談を優先**: 独自体験は代替不可。具体的な数字・苦労・発見を含めると高スコア\n"
+        integrated += "- **ニュースは速報性が命**: 飽和度がmainstream以降だとパフォーマンス低下\n"
     integrated += "- **画像は補強として有効**: imp増加効果あり。ただし画像に頼りすぎない\n"
 
     # 既存ファイルの読み込みとセクション差し替え

@@ -38,8 +38,9 @@ W-Score = Xアルゴリズム重み付きエンゲージメント。高いほど
 
 ---
 
+
 ## ソースB: 他者バズツイート分析（buzz_content_analyzer.py）
-更新: 2026-02-18 08:30 | ソース: buzz_content_analyzer.py | 分析対象: 32件（過去30日蓄積）
+更新: 2026-02-18 17:13 | ソース: buzz_content_analyzer.py | 分析対象: 32件（過去30日蓄積）
 
 ### バズ content_type 分布（エンゲージメント順）
 
@@ -61,10 +62,10 @@ W-Score = Xアルゴリズム重み付きエンゲージメント。高いほど
 
 | 要因 | 件数 | 平均eng_score |
 |------|------|-------------|
-| relatability | 11 | 3,251 |
-| entertainment | 11 | 3,100 |
-| controversy | 4 | 2,913 |
-| information_value | 5 | 2,347 |
+| entertainment | 11 | 3,248 |
+| relatability | 11 | 3,103 |
+| information_value | 6 | 2,725 |
+| controversy | 3 | 2,347 |
 | timeliness | 1 | 1,010 |
 
 ## 統合ネタ選定ガイダンス
@@ -72,8 +73,11 @@ W-Score = Xアルゴリズム重み付きエンゲージメント。高いほど
 ソースA（自己ツイート分析）とソースB（他者バズ分析）の両方を踏まえた方向性。
 
 - **バズしやすいcontent_type**: other, opinion, ai_news（他者のバズ分布から）
-- **バズの主要因**: relatability, entertainment, controversy（高エンゲージメントツイートの共通要素）
+- **バズの主要因**: entertainment, relatability, information_value（高エンゲージメントツイートの共通要素）
+- **最強カテゴリ（自分も得意+他者もバズる）**: opinion, other
+- **改善チャンス（他者はバズるが自分は弱い）**: ai_news
+- **ニッチ強み（自分は得意だが他者は少ない）**: engagement
 - **独自性とバズの関係**: 独自性4-5の他者ツイートは平均eng 6,274
-- **BIP・体験談を優先**: 独自体験は代替不可。具体的な数字・苦労・発見を含めると高スコア
-- **ニュースは速報性が命**: 飽和度がmainstream以降だとパフォーマンス低下
+- **BIP・体験談を優先**: 自分のBIPはW-Score 18.0（8件）。独自体験は代替不可
+- **ニュースは速報性が命**: 自分のai_newsはW-Score 6.5（11件）。飽和度mainstream以降はパフォーマンス低下
 - **画像は補強として有効**: imp増加効果あり。ただし画像に頼りすぎない
