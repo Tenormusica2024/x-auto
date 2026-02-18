@@ -174,19 +174,8 @@ class MeasurementResult(TypedDict):
     confidence: float
 
 
-class MeasurementError(TypedDict):
-    """measure_saturationのエラー結果（errorキー付き）"""
-    primary_keyword: str
-    primary_count: int
-    secondary_count: int
-    total_count: int
-    key_person_count: int
-    key_persons_found: list[dict]
-    earliest_mention: None
-    hourly_distribution: dict
-    saturation_score: float
-    suggested_level: str
-    confidence: float
+class MeasurementError(MeasurementResult):
+    """measure_saturationのエラー結果（MeasurementResult + errorキー）"""
     error: str
 
 
@@ -255,7 +244,14 @@ _JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 # === レート制限チェック（buzz_tweet_extractor.pyと同じロジック） ===
 
 def check_rate_limit() -> tuple[bool, str | None]:
-    """accounts.dbからtwscrapeのレート制限状態を事前確認"""
+    """accounts.dbからtwscrapeのレート制限状態を事前確認する。
+
+    Note:
+        同期的にSQLiteへアクセスする。async関数内から呼ぶ場合、
+        イベントループをブロックするが、SQLiteの単一SELECTは
+        ミリ秒単位で完了するため実用上問題ない。
+        並行度が高い環境ではasyncio.to_thread()でラップすること。
+    """
     conn = None
     try:
         conn = sqlite3.connect(str(ACCOUNTS_DB))
@@ -369,7 +365,13 @@ async def extract_topic_keywords(
     api_key: str,
     http_client: httpx.AsyncClient | None = None,
 ) -> dict | None:
-    """ツイートテキストからニューストピックのキーワードを抽出"""
+    """ツイートテキストからニューストピックのキーワードを抽出する。
+
+    リトライ戦略:
+        外側ループ(3回): HTTP 429/タイムアウト/接続エラーのリトライ。
+        各attempt内でJSONパース失敗時はtemperatureを上げて1回だけ再試行する。
+        パース失敗2回（temperature=0.1 + 0.3）で次のattemptへ進む。
+    """
     prompt = KEYWORD_EXTRACTION_PROMPT.format(
         tweet_text=tweet_text[:TWEET_TEXT_MAX_CHARS]
     )
@@ -378,28 +380,34 @@ async def extract_topic_keywords(
     own_client = http_client is None
     client = http_client or httpx.AsyncClient(timeout=30.0)
 
+    # JSONパース用のtemperature段階: 低温→高温の順で試す
+    temperatures = [0.1, 0.3]
+
     try:
         for attempt in range(3):
             try:
-                content = await _call_groq_completion(client, api_key, prompt, temperature=0.1)
-                if content is None:
-                    return None
+                # 各attemptでtemperature段階を順に試す
+                for temp in temperatures:
+                    content = await _call_groq_completion(client, api_key, prompt, temperature=temp)
+                    if content is None:
+                        return None
 
-                parsed = _extract_json_from_llm(content)
-                if parsed is not None:
-                    return parsed
+                    parsed = _extract_json_from_llm(content)
+                    if parsed is not None:
+                        return parsed
 
-                # JSONパース失敗: temperature上げて1回リトライ
-                if attempt < 2:
-                    logger.warning("JSONパース失敗、temperature=0.3でリトライ (attempt %d)", attempt + 1)
-                    retry_content = await _call_groq_completion(client, api_key, prompt, temperature=0.3)
-                    if retry_content is not None:
-                        retry_parsed = _extract_json_from_llm(retry_content)
-                        if retry_parsed is not None:
-                            return retry_parsed
+                    if temp < temperatures[-1]:
+                        logger.warning(
+                            "JSONパース失敗、temperature=%.1f→%.1fでリトライ (attempt %d)",
+                            temp, temperatures[temperatures.index(temp) + 1], attempt + 1,
+                        )
 
-                logger.error("キーワード抽出パースエラー: JSONブロックが見つかりません")
-                return None
+                # 全temperatureでパース失敗 → 次のattemptへ（HTTP/接続リトライと統合）
+                logger.warning(
+                    "全temperature(%s)でJSONパース失敗 (attempt %d/%d)",
+                    temperatures, attempt + 1, 3,
+                )
+                continue
 
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 429:
@@ -413,21 +421,20 @@ async def extract_topic_keywords(
                 logger.error("キーワード抽出パースエラー: %s", e)
                 return None
             except httpx.TimeoutException as e:
-                # タイムアウトはリトライ可能: 次のattemptへ
                 logger.warning("Groq APIタイムアウト (attempt %d): %s", attempt + 1, e)
                 continue
             except httpx.ConnectError as e:
-                # 接続エラーもリトライ可能
                 logger.warning("Groq API接続エラー (attempt %d): %s", attempt + 1, e)
                 continue
             except Exception as e:
                 logger.error("キーワード抽出エラー（予期しない例外）: %s: %s", type(e).__name__, e)
                 return None
+
+        logger.error("キーワード抽出: 全リトライ失敗")
+        return None
     finally:
         if own_client:
             await client.aclose()
-
-    return None
 
 
 # === ツイート処理ヘルパー（Q1/Q2共通） ===
@@ -491,7 +498,10 @@ async def _run_search_query(api: API, query: str, ctx: SearchContext) -> int:
             return -1
         logger.error("検索エラー（HTTP %d）: %s", e.response.status_code, e)
     except Exception as e:
-        # twscrape内部で発生する非HTTPのレート制限エラーもHTTPStatusErrorでない場合がある
+        # twscrape内部で発生する非HTTPのレート制限エラーはHTTPStatusErrorではなく
+        # 独自のException/Errorで送出されることがある。具体的な例外クラスが
+        # twscrapeのpublic APIで公開されていないため、str(e)のパターンマッチで検出する。
+        # ⚠ twscrapeのバージョンアップでエラーメッセージ形式が変わると検出漏れの可能性あり。
         err_str = str(e).lower()
         if "429" in err_str or "rate" in err_str:
             logger.warning("レート制限検出")
@@ -707,8 +717,11 @@ def _empty_result(reason: str) -> MeasurementError:
 # === 対象ツイート取得（content_evaluations.jsonからai_newsを抽出） ===
 
 def get_ai_news_tweets(limit: int = 5, tweet_id: str | None = None) -> list[dict]:
-    """content_evaluations.jsonからai_newsツイートを取得。
+    """content_evaluations.jsonからai_newsツイートを取得する。
+
     tweet_detailsからテキスト情報も結合する。
+    JSONファイル全体をメモリに読み込むため、データ件数が数百件程度を
+    前提としている。1000件超の規模になる場合はSQLite等への移行を検討。
     """
     if not EVAL_PATH.exists():
         logger.error("content_evaluations.json が見つかりません")
