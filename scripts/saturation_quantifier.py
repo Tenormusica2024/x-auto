@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from collections import Counter
-from typing import Any
+from typing import Any, TypedDict
 
 import httpx
 
@@ -157,6 +157,66 @@ class SearchContext:
     cutoff_dt: datetime | None = None
 
 
+# === 戻り値型定義（measure_saturation / quantify_saturation） ===
+
+class MeasurementResult(TypedDict):
+    """measure_saturationの正常結果"""
+    primary_keyword: str
+    primary_count: int
+    secondary_count: int
+    total_count: int
+    key_person_count: int
+    key_persons_found: list[dict]
+    earliest_mention: str | None
+    hourly_distribution: dict[str, int]
+    saturation_score: float
+    suggested_level: str
+    confidence: float
+
+
+class MeasurementError(TypedDict):
+    """measure_saturationのエラー結果（errorキー付き）"""
+    primary_keyword: str
+    primary_count: int
+    secondary_count: int
+    total_count: int
+    key_person_count: int
+    key_persons_found: list[dict]
+    earliest_mention: None
+    hourly_distribution: dict
+    saturation_score: float
+    suggested_level: str
+    confidence: float
+    error: str
+
+
+class QuantifyResultNormal(TypedDict):
+    """quantify_saturationの通常計測結果"""
+    tweet_id: str
+    keywords: dict
+    llm_level: str
+    measurement: MeasurementResult | MeasurementError
+    match_status: str
+
+
+class QuantifyResultDryRun(TypedDict):
+    """quantify_saturationのdry-run結果"""
+    tweet_id: str
+    keywords: dict
+    llm_level: str
+    dry_run: bool
+
+
+class QuantifyResultError(TypedDict):
+    """quantify_saturationのエラー結果"""
+    tweet_id: str
+    error: str
+
+
+# quantify_saturationの各要素がとりうる型
+QuantifyResult = QuantifyResultNormal | QuantifyResultDryRun | QuantifyResultError
+
+
 # キーワード抽出プロンプト
 KEYWORD_EXTRACTION_PROMPT = """\
 あなたはX(Twitter)のニュース分析の専門家です。
@@ -268,6 +328,40 @@ def _extract_json_from_llm(content: str) -> dict | None:
         return None
 
 
+# === Groq API共通呼び出し ===
+
+async def _call_groq_completion(
+    client: httpx.AsyncClient,
+    api_key: str,
+    prompt: str,
+    temperature: float = 0.1,
+) -> str | None:
+    """Groq APIにリクエストを送信し、レスポンスのテキスト部分を返す。
+
+    Returns:
+        成功時: LLMレスポンスのcontent文字列
+        失敗時: None
+    Raises:
+        httpx.HTTPStatusError: HTTP 429等のエラー（呼び出し元でハンドリング）
+    """
+    response = await client.post(
+        GROQ_API_URL,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": GROQ_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": temperature,
+            "max_tokens": 300,
+        },
+    )
+    response.raise_for_status()
+    result = response.json()
+    return result["choices"][0]["message"]["content"].strip()
+
+
 # === Groqでキーワード抽出 ===
 
 async def extract_topic_keywords(
@@ -287,22 +381,9 @@ async def extract_topic_keywords(
     try:
         for attempt in range(3):
             try:
-                response = await client.post(
-                    GROQ_API_URL,
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": GROQ_MODEL,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "temperature": 0.1,
-                        "max_tokens": 300,
-                    },
-                )
-                response.raise_for_status()
-                result = response.json()
-                content = result["choices"][0]["message"]["content"].strip()
+                content = await _call_groq_completion(client, api_key, prompt, temperature=0.1)
+                if content is None:
+                    return None
 
                 parsed = _extract_json_from_llm(content)
                 if parsed is not None:
@@ -311,25 +392,11 @@ async def extract_topic_keywords(
                 # JSONパース失敗: temperature上げて1回リトライ
                 if attempt < 2:
                     logger.warning("JSONパース失敗、temperature=0.3でリトライ (attempt %d)", attempt + 1)
-                    response = await client.post(
-                        GROQ_API_URL,
-                        headers={
-                            "Authorization": f"Bearer {api_key}",
-                            "Content-Type": "application/json",
-                        },
-                        json={
-                            "model": GROQ_MODEL,
-                            "messages": [{"role": "user", "content": prompt}],
-                            "temperature": 0.3,
-                            "max_tokens": 300,
-                        },
-                    )
-                    response.raise_for_status()
-                    retry_result = response.json()
-                    retry_content = retry_result["choices"][0]["message"]["content"].strip()
-                    retry_parsed = _extract_json_from_llm(retry_content)
-                    if retry_parsed is not None:
-                        return retry_parsed
+                    retry_content = await _call_groq_completion(client, api_key, prompt, temperature=0.3)
+                    if retry_content is not None:
+                        retry_parsed = _extract_json_from_llm(retry_content)
+                        if retry_parsed is not None:
+                            return retry_parsed
 
                 logger.error("キーワード抽出パースエラー: JSONブロックが見つかりません")
                 return None
@@ -345,8 +412,16 @@ async def extract_topic_keywords(
             except (json.JSONDecodeError, KeyError) as e:
                 logger.error("キーワード抽出パースエラー: %s", e)
                 return None
+            except httpx.TimeoutException as e:
+                # タイムアウトはリトライ可能: 次のattemptへ
+                logger.warning("Groq APIタイムアウト (attempt %d): %s", attempt + 1, e)
+                continue
+            except httpx.ConnectError as e:
+                # 接続エラーもリトライ可能
+                logger.warning("Groq API接続エラー (attempt %d): %s", attempt + 1, e)
+                continue
             except Exception as e:
-                logger.error("キーワード抽出エラー: %s", e)
+                logger.error("キーワード抽出エラー（予期しない例外）: %s: %s", type(e).__name__, e)
                 return None
     finally:
         if own_client:
@@ -445,8 +520,8 @@ def _aggregate_tweet_stats(
             hours_ago = (now - dt.astimezone(JST)).total_seconds() / 3600
             bucket = int(hours_ago // HOURLY_BUCKET_SIZE) * HOURLY_BUCKET_SIZE
             hourly_dist[f"{bucket}-{bucket + HOURLY_BUCKET_SIZE}h"] += 1
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            logger.debug("ツイート日時パース失敗（スキップ）: %s", e)
 
     return hourly_dist, earliest
 
@@ -459,27 +534,21 @@ async def measure_saturation(
     key_persons: dict[str, dict[str, Any]],
     lookback_hours: int = 72,
     api: API | None = None,
-) -> dict:
+) -> MeasurementResult | MeasurementError:
     """twscrapeでトピックの飽和度を実測する。
 
     Args:
+        primary_keyword: メインの検索キーワード（最も特定性が高い）
+        secondary_keywords: 補助キーワードのリスト。レート制限対策として
+            先頭の1つだけを検索に使用する。
+        key_persons: username→情報のマップ（load_key_persons()の戻り値）
+        lookback_hours: 遡及する時間数（デフォルト72h）
         api: twscrape APIインスタンス。未指定時は内部生成する。
              複数回呼び出す場合は外部で生成して渡すと効率的。
 
     Returns:
-        {
-            "primary_keyword": str,
-            "primary_count": int,       # メインキーワードのツイート件数
-            "secondary_count": int,     # 補助キーワードの追加件数
-            "total_count": int,
-            "key_person_count": int,    # キーパーソンの言及数
-            "key_persons_found": list,  # 言及したキーパーソン名
-            "earliest_mention": str,    # 最も古い言及のISO8601
-            "hourly_distribution": dict,# 時間帯別ツイート件数
-            "saturation_score": float,  # 0.0-1.0 の飽和度スコア
-            "suggested_level": str,     # first_mover/early/mainstream/late/rehash
-            "confidence": float,        # 信頼度（サンプルサイズに基づく）
-        }
+        MeasurementResult: 正常計測結果（11フィールド）
+        MeasurementError: エラー時（MeasurementResult + errorキー）
     """
     # レート制限チェック
     available, next_time = check_rate_limit()
@@ -515,7 +584,10 @@ async def measure_saturation(
 
     await asyncio.sleep(QUERY_DELAY)
 
-    # --- Q2: 補助キーワード（最も特定性の高い1つだけ、レート制限対策） ---
+    # --- Q2: 補助キーワード ---
+    # secondary_keywordsは複数存在しうるが、レート制限を考慮して最も特定性の高い
+    # 先頭1つだけを検索する（LLMが特定性順に並べて返す前提）。
+    # 全件検索すると1ツイートあたりのAPI呼び出しが増え、レート制限に達しやすくなる。
     secondary_count = 0
     if secondary_keywords:
         sec_kw = secondary_keywords[0]
@@ -614,8 +686,8 @@ def _calculate_saturation(
     return saturation_score, level, confidence
 
 
-def _empty_result(reason: str) -> dict:
-    """計測失敗時のデフォルト結果"""
+def _empty_result(reason: str) -> MeasurementError:
+    """計測失敗時のデフォルト結果（errorキー付き）"""
     return {
         "primary_keyword": "",
         "primary_count": 0,
@@ -689,11 +761,14 @@ async def quantify_saturation(
     tweets: list[dict],
     api_key: str,
     dry_run: bool = False,
-) -> list[dict]:
+) -> list[QuantifyResult]:
     """ai_newsツイートの飽和度を定量計測する。
 
     Returns:
-        各ツイートの計測結果リスト
+        各ツイートの計測結果リスト。要素は以下のいずれか:
+        - QuantifyResultNormal: 通常計測結果（measurement + match_status）
+        - QuantifyResultDryRun: dry-run時（keywords + llm_level + dry_run=True）
+        - QuantifyResultError: キーワード抽出失敗時（error文字列のみ）
     """
     key_persons = load_key_persons()
     logger.info("キーパーソンDB: %d名ロード済み", len(key_persons))
