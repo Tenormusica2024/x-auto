@@ -50,9 +50,9 @@ collect_likers.py 実行から CiC 開始までの間に別セッションが処
 3. find("いいねする button")
 4. 結果から「いいねする」（未いいね）のref IDを likes_count 個選択
    - 「いいねしました」はスキップ（既にいいね済み）
-5. click(ref_1)
-6. click(ref_2)
-7. likes_count が 3 なら click(ref_3) も実行
+5. likes_count の数だけ順に click(ref_1), click(ref_2), ... を実行
+   - 例: likes_count=1 → click(ref_1) のみ
+   - 例: likes_count=3 → click(ref_1), click(ref_2), click(ref_3)
 8. ★ like_history.json にこのユーザーを即座に追記（フェーズ4参照）
 9. 次のユーザーへ
 ```
@@ -87,15 +87,27 @@ collect_likers.py 実行から CiC 開始までの間に別セッションが処
       "last_liked_at": "ISO8601タイムスタンプ",
       "liked_count": 2,
       "source_tweets": ["tweet_id1"],
-      "source": "like_back"
+      "source": "like_back",
+      "skipped_reason": "(スキップ時のみ) repost_only 等"
     }
-  }
+  },
+  "daily_stats": {
+    "YYYY-MM-DD": {
+      "total_likes_given": 20,
+      "users_processed": 10,
+      "users_skipped": 0,
+      "source_tweets_checked": 5
+    }
+  },
+  "remaining_users": {}
 }
 ```
 
+**⚠️ CiCでWrite時の注意**: `daily_stats` と `remaining_users` を消さないこと。Read→該当エントリ追記→Write の手順で全キーを保持する。
+
 **新規フォロワーの場合**: `source: "new_follower"`, `source_tweets: []`, `liked_count: 1`
 
-**スキップしたユーザーも記録する**: リポスト中心でオリジナルが見つからずスキップした場合も、`liked_count: 0` で記録し、次回の重複チェック対象に含める。
+**スキップしたユーザーも記録する**: リポスト中心でオリジナルが見つからずスキップした場合も、`liked_count: 0`, `skipped_reason: "repost_only"` で記録し、次回の重複チェック対象に含める。
 
 ### フェーズ5: 結果報告
 処理結果をユーザーに報告:
@@ -109,7 +121,7 @@ collect_likers.py 実行から CiC 開始までの間に別セッションが処
 `config.json` で以下を調整可能:
 - `daily_like_limit`: 1日のいいね上限（デフォルト: 20）
 - `tweet_check_count`: チェックするツイート数（デフォルト: 5）
-- `enable_new_follower_likes`: 新規フォロワーいいね有効/無効（デフォルト: true）
+- `enable_new_follower_likes`: 新規フォロワーいいね有効/無効（コードデフォルト: true、現在の設定値: false）
 - `new_follower_likes`: 新規フォロワー1人あたりのいいね数（デフォルト: 1）
 
 ## 1日の上限
@@ -131,10 +143,9 @@ collect_likers.py 実行から CiC 開始までの間に別セッションが処
 4. 未処理ユーザーに対してフェーズ3から再開
 
 **remaining ユーザーの翌日引き継ぎ:**
-- `like_history.json` の `remaining_users.next_run` に残りユーザーが記録されている
-- 翌日の `collect_likers.py` 実行時に新たな `target_users.json` が生成される
-- remaining は新規ユーザーと合算して `daily_like_limit` の予算内で処理される
-- ただし `collect_likers.py` は remaining を直接引き継がない。翌日も同じユーザーがいいねしていれば自動的に再収集される
+- 予算超過でスキップされたユーザーは `target_users.json` の `remaining` 配列に記録される
+- `collect_likers.py` は remaining を直接引き継がない（翌日ゼロから再収集する設計）
+- 翌日も同じユーザーがいいねしていれば自動的に再収集される
 
 ## 二重いいね防止（CRITICAL）
 - `like_history.json` は1ユーザー処理ごとに即座更新（フェーズ4参照）

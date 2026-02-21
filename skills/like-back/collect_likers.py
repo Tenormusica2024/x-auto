@@ -3,7 +3,7 @@ collect_likers.py - いいね等価返し用ユーザー収集 + 新規フォロ
 
 X API経由で自分の最新ツイートにいいねした人を収集し、
 もらった数と同じ数だけいいねを返す（等価返し）ための対象リストを出力する。
-一度処理したユーザーは永久にスキップされる。
+処理済みユーザーはGC_RETENTION_DAYS（90日）の間スキップされる。
 
 使い方:
   cd C:\Users\Tenormusica\x-auto\skills\like-back
@@ -51,16 +51,21 @@ def load_history() -> dict:
     """like_history.jsonを読み込む"""
     if HISTORY_FILE.exists():
         return json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+    # remaining_users: CiC側が予算超過ユーザーを記録する領域（collect_likers.pyは参照しない）
     return {"last_run": None, "processed": {}, "daily_stats": {}, "remaining_users": {}}
 
 
 def save_history(history: dict) -> None:
     """like_history.jsonを保存。GC（purge_old_history）後の書き戻しで使用。
     いいね実行後の個別エントリ追記はCiC（PROMPT.md）側が担当。"""
-    HISTORY_FILE.write_text(
-        json.dumps(history, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    try:
+        HISTORY_FILE.write_text(
+            json.dumps(history, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except OSError as e:
+        print(f"  [ERROR] like_history.json の保存に失敗: {e}")
+        raise
 
 
 GC_RETENTION_DAYS = 90  # 処理済みエントリの保持期間
@@ -115,14 +120,18 @@ def save_follower_snapshot(followers: list[dict]) -> None:
 
 # --- API呼び出し ---
 
-def api_call_with_retry(func, *args, max_retries=3, **kwargs):
-    """API呼び出しのリトライラッパー。rate limit時は段階的に待機してリトライ。
-    X APIのrate limit windowは15分。リトライ間隔: 60s→180s→300s"""
+def api_call_with_retry(func, *args, max_retries: int = 3, **kwargs):
+    """API呼び出しのリトライラッパー。サーバーエラー時は段階的に待機してリトライ。
+
+    NOTE: x_client.pyでwait_on_rate_limit=Trueに設定済みのため、通常TooManyRequests例外は
+    発生しない（tweepyが自動待機してリトライする）。TooManyRequestsハンドラは
+    wait_on_rate_limitを無効化した場合のフォールバックとして残置。"""
     retry_waits = [60, 180, 300]  # 段階的バックオフ（秒）
     for attempt in range(max_retries + 1):
         try:
             return func(*args, **kwargs)
         except tweepy.errors.TooManyRequests:
+            # wait_on_rate_limit=True時は通常到達しない（フォールバック用）
             if attempt < max_retries:
                 wait = retry_waits[min(attempt, len(retry_waits) - 1)]
                 print(f"  [!] Rate limit到達。{wait}秒待機後にリトライ ({attempt + 1}/{max_retries})...")
@@ -151,6 +160,7 @@ def get_recent_tweets(client, user_id: str, count: int = 5) -> list[dict]:
     resp = api_call_with_retry(
         client.get_users_tweets,
         id=user_id,
+        # count*2: いいね0件のツイートを除外するため余分に取得。100はX API v2のmax_results上限
         max_results=min(count * 2, 100),
         tweet_fields=["public_metrics", "created_at"],
         exclude=["retweets"],
@@ -252,7 +262,7 @@ def detect_new_followers(current_followers: list[dict], snapshot: dict) -> list[
 # --- 履歴フィルタ ---
 
 def filter_by_history(users: list[dict], history: dict) -> tuple[list[dict], list[dict]]:
-    """履歴と照合して未処理/処理済みに分ける。一度処理したユーザーは永久にスキップ。
+    """履歴と照合して未処理/処理済みに分ける。GC_RETENTION_DAYS以内の処理済みユーザーはスキップ。
     like_history.jsonのキーはusernameで管理（CiC側のPROMPT.mdと統一）。"""
     new_users = []
     skipped_users = []
@@ -270,13 +280,13 @@ def filter_by_history(users: list[dict], history: dict) -> tuple[list[dict], lis
 @dataclass
 class CollectionResult:
     """collect_likers.pyの収集結果をまとめるデータクラス"""
-    today_users: list = field(default_factory=list)
-    remaining_users: list = field(default_factory=list)
-    new_likers: list = field(default_factory=list)
-    skipped_likers: list = field(default_factory=list)
-    new_follower_targets: list = field(default_factory=list)
-    all_likers: dict = field(default_factory=dict)
-    tweets: list = field(default_factory=list)
+    today_users: list[dict] = field(default_factory=list)
+    remaining_users: list[dict] = field(default_factory=list)
+    new_likers: list[dict] = field(default_factory=list)
+    skipped_likers: list[dict] = field(default_factory=list)
+    new_follower_targets: list[dict] = field(default_factory=list)
+    all_likers: dict[str, dict] = field(default_factory=dict)
+    tweets: list[dict] = field(default_factory=list)
     follower_api_calls: int = 0
     daily_limit: int = 20
     dry_run: bool = False
@@ -340,7 +350,8 @@ def output_and_save(cr: CollectionResult) -> None:
         for u in cr.remaining_users:
             print(f"  - @{u['username']}")
 
-    # APIコスト計算（ツイート取得1回 + liking_users N回 + フォロワー取得M回）
+    # APIコスト計算（X API Pay-Per-Use: 読取系$0.005/件、プロフィール系$0.010/件）
+    # ツイート取得1回($0.005) + liking_users N回($0.005/回) + フォロワー取得M回($0.010/回)
     api_cost = 0.005 * (1 + len(cr.tweets)) + 0.010 * cr.follower_api_calls
     cost_parts = [f"ツイート取得1回 + liking_users{len(cr.tweets)}回"]
     if cr.follower_api_calls > 0:
