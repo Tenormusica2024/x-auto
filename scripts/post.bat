@@ -21,7 +21,7 @@ REM Claude in Chromeで投稿生成・実行
 5. If review passes, POST to X.com using: C:\Users\Tenormusica\x-auto\skills\post-tweet\PROMPT.md
 6. Take a screenshot after posting and save the result
 
-Account: @sena_09_04
+Account: @SundererD27468
 Language: Japanese
 
 Important:

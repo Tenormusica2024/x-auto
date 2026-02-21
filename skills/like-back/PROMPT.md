@@ -42,7 +42,7 @@ collect_likers.py 実行から CiC 開始までの間に別セッションが処
 
 ### フェーズ3: いいね実行（CiC）
 各ユーザーに対して以下のパターンを繰り返す。
-`target_users.json` の各ユーザーに `likes_count` フィールドがある（いいね返し: 2-3、新規フォロワー: 1）。
+`target_users.json` の各ユーザーに `likes_count` フィールドがある（いいね返し: いいねしてくれたツイート数と同数、新規フォロワー: 1）。
 
 ```
 1. navigate("https://x.com/{username}")
@@ -138,6 +138,6 @@ collect_likers.py 実行から CiC 開始までの間に別セッションが処
 
 ## 二重いいね防止（CRITICAL）
 - `like_history.json` は1ユーザー処理ごとに即座更新（フェーズ4参照）
-- `collect_likers.py` は履歴にあるユーザーを自動除外（`history_expiry_days` 以内）
+- `collect_likers.py` は履歴にあるユーザーを自動除外（90日以内 = `GC_RETENTION_DAYS`）
 - CiC実行開始前に `target_users.json` のユーザーが `like_history.json` に既に存在しないか再確認する
 - 不安な場合はフェーズ1の `collect_likers.py` を `--dry-run` で先に確認
