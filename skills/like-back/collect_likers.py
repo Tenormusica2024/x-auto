@@ -40,7 +40,10 @@ def load_config() -> dict[str, int | bool]:
     NOTE: enable_new_follower_likesのフォールバックはTrue（機能有効）だが、
     config.jsonでは現在falseに設定されている。config.json側の値が常に優先される。"""
     if CONFIG_FILE.exists():
-        return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        try:
+            return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, ValueError):
+            print("  [WARN] config.json が破損。デフォルト値にフォールバックします")
     return {
         "daily_like_limit": 20,
         "tweet_check_count": 5,
@@ -50,9 +53,12 @@ def load_config() -> dict[str, int | bool]:
 
 
 def load_history() -> dict:
-    """like_history.jsonを読み込む"""
+    """like_history.jsonを読み込む。破損時は空の初期状態にフォールバック。"""
     if HISTORY_FILE.exists():
-        return json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+        try:
+            return json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, ValueError):
+            print("  [WARN] like_history.json が破損。空の初期状態にフォールバックします")
     # remaining_users: CiC側が予算超過ユーザーを記録する領域（collect_likers.pyは参照しない）
     return {"last_run": None, "processed": {}, "daily_stats": {}, "remaining_users": {}}
 
@@ -127,7 +133,7 @@ def save_follower_snapshot(followers: list[dict]) -> None:
 
 # --- API呼び出し ---
 
-def api_call_with_retry(func, *args, max_retries: int = 3, **kwargs):
+def api_call_with_retry(func, *args, max_retries: int = 3, **kwargs) -> tweepy.Response | None:
     """API呼び出しのリトライラッパー。サーバーエラー時は段階的に待機してリトライ。
 
     NOTE: x_client.pyでwait_on_rate_limit=Trueに設定済みのため、通常TooManyRequests例外は
@@ -208,11 +214,12 @@ def get_liking_users(client, tweet_id: str) -> list[dict]:
             continue
         if user.protected:
             continue
+        pm = user.public_metrics or {}
         users.append({
             "id": str(user.id),
             "username": user.username,
             "name": user.name,
-            "followers": user.public_metrics.get("followers_count", 0),
+            "followers": pm.get("followers_count", 0),
         })
     return users
 
@@ -230,6 +237,7 @@ def get_current_followers(client, user_id: str) -> tuple[list[dict], int]:
     while page_count < MAX_FOLLOWER_PAGES:
         kwargs = {
             "id": user_id,
+            # X API v2 GET /2/users/:id/followers の max_results 上限値
             "max_results": 1000,
             "user_fields": ["username", "name", "protected", "public_metrics"],
             "user_auth": True,
@@ -245,11 +253,12 @@ def get_current_followers(client, user_id: str) -> tuple[list[dict], int]:
         for user in resp.data:
             if user.protected:
                 continue
+            pm = user.public_metrics or {}
             all_followers.append({
                 "id": str(user.id),
                 "username": user.username,
                 "name": user.name,
-                "followers": user.public_metrics.get("followers_count", 0),
+                "followers": pm.get("followers_count", 0),
             })
 
         # ページネーション: next_tokenがあれば次のページへ
@@ -410,7 +419,6 @@ def main() -> None:
         # ツイートがなくてもフォロワー検出は続行
         if not do_followers:
             return
-        tweets = []
 
     for t in tweets:
         print(f"  - {t['id']}: {t['text'][:50]}... ({t['like_count']}L)")

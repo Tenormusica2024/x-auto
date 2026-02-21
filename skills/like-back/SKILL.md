@@ -78,5 +78,5 @@ powershell -ExecutionPolicy Bypass -File "C:\Users\Tenormusica\x-auto\skills\lik
 **推奨時間帯**: 21:00-22:00（daily_metrics実行後、1日のツイート活動が落ち着いた頃）
 
 ## コスト
-- API（データ収集）: ~$0.04/回（ツイート取得 + liking_users 5回 + フォロワー取得1回）
+- API（データ収集）: ~$0.03/回（ツイート取得1回 + liking_users 5回）。フォロワー検出有効時は +$0.01（フォロワー取得1回）で ~$0.04/回
 - CiC（いいね実行）: $0.00（ブラウザ操作のため無料）
