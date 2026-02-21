@@ -2,7 +2,7 @@
 
 ## Feature 5: 週次サマリー自動生成 [DONE]
 
-`scripts/weekly_summary.py` として実装済み。Task Scheduler登録待ち（毎週日曜 22:00）。
+`scripts/weekly_summary.py` として実装済み。Task Scheduler `X-Auto-WeeklySummary` 毎週日曜 22:00 登録済み。
 
 ---
 
@@ -37,13 +37,6 @@
 
 ---
 
-## ロードマップ更新
+## ロードマップ更新 [DONE]
 
-`x-auto-feature-roadmap.md` 自体が2026-02-13時点で古い。
-以下のスクリプトが未反映:
-- zeitgeist_detector.py
-- buzz_tweet_extractor.py / buzz_content_analyzer.py
-- content_evaluator.py / saturation_quantifier.py
-- themed_buzz_extractor.py
-
-次回整理時にロードマップを現状に同期する。
+`x-auto-feature-roadmap.md` を2026-02-21時点の実装状況に同期済み。
