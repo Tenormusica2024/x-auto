@@ -214,6 +214,33 @@ def _format_top_tweets(top_tweets: list[dict]) -> str:
     return "\n".join(lines) if lines else "（データなし）"
 
 
+def _classify_person(person: dict) -> str:
+    """
+    キーパーソンの特徴を一言タグで返す。
+    蓄積データからルールベースで判定（API不使用）。
+    """
+    topics = person.get("topics", {})
+    topic_count = len(topics)
+    appearances = person.get("total_appearances", 0)
+    likes = person.get("total_likes", 0)
+    rts = person.get("total_rts", 0)
+
+    # 1出現あたりの平均エンゲージメント
+    avg_eng = (likes + rts) / max(appearances, 1)
+
+    if topic_count >= 5:
+        return "広域ウォッチャー"
+    if topic_count >= 3:
+        return "複数領域カバー"
+    if avg_eng >= 30:
+        return "高エンゲージ"
+    if appearances >= 5 and topic_count <= 2:
+        return "特化型"
+    if rts > likes * 0.5 and rts >= 3:
+        return "拡散力あり"
+    return "注目中"
+
+
 def generate_draft(topic: dict, x_data: dict) -> str:
     """ホットトレンドの下書きテンプレートを生成"""
     date = today_str()
@@ -550,7 +577,7 @@ def main():
             f"{len(results)}トピック分析完了。ホットトレンドなし（閾値: {args.threshold}）"
         )
 
-    # キーパーソンTOP3をDiscordにも表示（表示名+関連トピック付き）
+    # キーパーソンTOP3をDiscordにも表示（表示名+関連トピック+特徴タグ付き）
     if top_persons:
         discord_lines.append("\n注目キーパーソン:")
         for i, p in enumerate(top_persons[:3], 1):
@@ -559,8 +586,9 @@ def main():
             # 関連トピックTOP3を表示（何について発信してるか分かるように）
             top_topics = sorted(p.get("topics", {}).items(), key=lambda x: x[1], reverse=True)[:3]
             topics_str = ", ".join(f"{t[0]}({t[1]})" for t in top_topics)
+            tag = _classify_person(p)
             discord_lines.append(
-                f"  {i}. {acct} ({name})\n"
+                f"  {i}. {acct} ({name}) [{tag}]\n"
                 f"     {topics_str} | like:{p['total_likes']}, RT:{p['total_rts']}"
             )
 
