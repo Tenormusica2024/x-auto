@@ -23,7 +23,7 @@ skills/like-back/
 ├── config.json           # 設定（日次上限・新規フォロワー）
 ├── like_history.json     # 処理履歴
 ├── target_users.json     # collect_likers.py の出力（CiCが読む）
-├── follower_snapshot.json # フォロワースナップショット（自動生成・差分検出用）
+├── follower_snapshot.json # フォロワースナップショット（初回実行時に自動生成・差分検出用）
 ├── register_task.ps1     # Task Scheduler登録スクリプト
 └── CIC_TEST_LOG.md       # テスト詳細ログ（開発参考）
 ```

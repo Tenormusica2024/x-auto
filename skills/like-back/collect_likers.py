@@ -31,7 +31,8 @@ SKILL_DIR = Path(__file__).resolve().parent
 HISTORY_FILE = SKILL_DIR / "like_history.json"
 CONFIG_FILE = SKILL_DIR / "config.json"
 SNAPSHOT_FILE = SKILL_DIR / "follower_snapshot.json"
-MY_USER_ID = "1805557649876172801"  # @SundererD27468
+# x_client.pyのMY_USER_IDSから主アカウントIDを取得（重複定義を回避）
+MY_USER_ID = next(iter(MY_USER_IDS))  # @SundererD27468
 
 
 def load_config() -> dict:
@@ -54,11 +55,36 @@ def load_history() -> dict:
 
 
 def save_history(history: dict) -> None:
-    """like_history.jsonを保存"""
+    """like_history.jsonを保存。現在はCiC（PROMPT.md）側で履歴更新するため未使用。
+    将来のAPI直接いいね実装時に使用予定。"""
     HISTORY_FILE.write_text(
         json.dumps(history, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+
+
+GC_RETENTION_DAYS = 90  # 処理済みエントリの保持期間
+
+
+def purge_old_history(history: dict, retention_days: int = GC_RETENTION_DAYS) -> int:
+    """retention_days日以上前の処理済みエントリを削除してメモリを解放。
+    削除した件数を返す。"""
+    cutoff = datetime.now(JST) - timedelta(days=retention_days)
+    processed = history.get("processed", {})
+    to_delete = []
+    for username, entry in processed.items():
+        last_liked = entry.get("last_liked_at", "")
+        if not last_liked:
+            continue
+        try:
+            entry_dt = datetime.fromisoformat(last_liked)
+            if entry_dt < cutoff:
+                to_delete.append(username)
+        except ValueError:
+            continue
+    for username in to_delete:
+        del processed[username]
+    return len(to_delete)
 
 
 # --- フォロワースナップショット管理 ---
@@ -89,15 +115,18 @@ def save_follower_snapshot(followers: list[dict]) -> None:
 
 # --- API呼び出し ---
 
-def api_call_with_retry(func, *args, max_retries=1, **kwargs):
-    """API呼び出しのリトライラッパー。rate limit時は60秒待って1回リトライ。"""
+def api_call_with_retry(func, *args, max_retries=3, **kwargs):
+    """API呼び出しのリトライラッパー。rate limit時は段階的に待機してリトライ。
+    X APIのrate limit windowは15分。リトライ間隔: 60s→180s→300s"""
+    retry_waits = [60, 180, 300]  # 段階的バックオフ（秒）
     for attempt in range(max_retries + 1):
         try:
             return func(*args, **kwargs)
         except tweepy.errors.TooManyRequests:
             if attempt < max_retries:
-                print(f"  [!] Rate limit到達。60秒待機後にリトライ...")
-                time.sleep(60)
+                wait = retry_waits[min(attempt, len(retry_waits) - 1)]
+                print(f"  [!] Rate limit到達。{wait}秒待機後にリトライ ({attempt + 1}/{max_retries})...")
+                time.sleep(wait)
             else:
                 print(f"  [ERROR] Rate limit: リトライ上限到達。スキップします")
                 return None
@@ -170,12 +199,16 @@ def get_liking_users(client, tweet_id: str) -> list[dict]:
     return users
 
 
+MAX_FOLLOWER_PAGES = 50  # ページネーション上限（50,000人まで対応）
+
+
 def get_current_followers(client, user_id: str) -> list[dict]:
-    """自分のフォロワー一覧を取得（ページネーション対応）"""
+    """自分のフォロワー一覧を取得（ページネーション対応、最大50ページ）"""
     all_followers = []
     pagination_token = None
+    page_count = 0
 
-    while True:
+    while page_count < MAX_FOLLOWER_PAGES:
         kwargs = {
             "id": user_id,
             "max_results": 1000,
@@ -186,6 +219,7 @@ def get_current_followers(client, user_id: str) -> list[dict]:
             kwargs["pagination_token"] = pagination_token
 
         resp = api_call_with_retry(client.get_users_followers, **kwargs)
+        page_count += 1
         if not resp or not resp.data:
             break
 
@@ -218,18 +252,97 @@ def detect_new_followers(current_followers: list[dict], snapshot: dict) -> list[
 # --- 履歴フィルタ ---
 
 def filter_by_history(users: list[dict], history: dict) -> tuple[list[dict], list[dict]]:
-    """履歴と照合して未処理/処理済みに分ける。一度処理したユーザーは永久にスキップ。"""
+    """履歴と照合して未処理/処理済みに分ける。一度処理したユーザーは永久にスキップ。
+    user_idとusername両方で照合（旧データ互換性維持）。"""
     new_users = []
     skipped_users = []
 
+    processed = history.get("processed", {})
+    # user_idベースの逆引きマップを構築（旧エントリにuser_idがある場合用）
+    processed_ids = {
+        entry.get("user_id") for entry in processed.values() if entry.get("user_id")
+    }
+
     for user in users:
-        username = user["username"]
-        if username in history.get("processed", {}):
+        # user_idで照合（優先）→ usernameでフォールバック（旧データ互換）
+        if user.get("id") in processed_ids or user["username"] in processed:
             skipped_users.append(user)
             continue
         new_users.append(user)
 
     return new_users, skipped_users
+
+
+def output_and_save(
+    today_users: list, remaining_users: list,
+    new_likers: list, skipped_likers: list,
+    new_follower_targets: list, all_likers: dict,
+    tweets: list, follower_api_calls: int,
+    daily_limit: int, dry_run: bool,
+) -> None:
+    """結果をtarget_users.jsonに出力し、サマリを表示"""
+    total_likes_today = sum(u["likes_count"] for u in today_users)
+    like_back_count = sum(1 for u in today_users if u.get("source") == "like_back")
+    new_follower_count = sum(1 for u in today_users if u.get("source") == "new_follower")
+
+    result = {
+        "timestamp": datetime.now(JST).isoformat(),
+        "tweets_checked": len(tweets),
+        "total_likers": len(all_likers),
+        "new_users": len(new_likers),
+        "skipped_users": len(skipped_likers),
+        "new_followers_detected": len(new_follower_targets),
+        "total_likes_planned": total_likes_today,
+        "today": [
+            {
+                "user_id": u["id"],
+                "username": u["username"],
+                "name": u["name"],
+                "followers": u["followers"],
+                "source_tweets": u["source_tweets"],
+                "likes_count": u["likes_count"],
+                "source": u.get("source", "like_back"),
+            }
+            for u in today_users
+        ],
+        "remaining": [u["username"] for u in remaining_users],
+    }
+
+    output_file = SKILL_DIR / "target_users.json"
+    if not dry_run:
+        output_file.write_text(
+            json.dumps(result, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        print(f"\n[OK] {output_file} に出力しました")
+    else:
+        print(f"\n[DRY-RUN] 出力内容:")
+
+    # サマリ表示
+    print(f"\n{'='*50}")
+    print(f"本日の対象: {len(today_users)}人 / いいね計{total_likes_today}件 (上限: {daily_limit}件)")
+    if like_back_count > 0:
+        print(f"  いいね返し: {like_back_count}人")
+    if new_follower_count > 0:
+        print(f"  新規フォロワー: {new_follower_count}人")
+    print(f"{'='*50}")
+
+    for i, u in enumerate(today_users, 1):
+        source_label = " [NEW FOLLOWER]" if u.get("source") == "new_follower" else ""
+        repeat_mark = " [REPEATER]" if u.get("source") == "like_back" and u.get("likes_count", 1) > 1 else ""
+        print(f"  {i:2d}. @{u['username']:<20s} ({u['followers']:,}フォロワー) → {u['likes_count']}L{repeat_mark}{source_label}")
+
+    if remaining_users:
+        print(f"\n本日スキップ（予算超過）: {len(remaining_users)}人")
+        for u in remaining_users:
+            print(f"  - @{u['username']}")
+
+    # APIコスト計算（ツイート取得1回 + liking_users N回 + フォロワー取得M回）
+    api_cost = 0.005 * (1 + len(tweets)) + 0.010 * follower_api_calls
+    cost_parts = [f"ツイート取得1回 + liking_users{len(tweets)}回"]
+    if follower_api_calls > 0:
+        cost_parts.append(f"followers{follower_api_calls}回")
+    print(f"\nAPIコスト: ${api_cost:.3f} ({' + '.join(cost_parts)})")
 
 
 def main():
@@ -241,6 +354,14 @@ def main():
 
     config = load_config()
     history = load_history()
+
+    # 古い処理済みエントリのGC（90日超を削除）
+    purged = purge_old_history(history)
+    if purged > 0:
+        print(f"[GC] {purged}件の古いエントリを削除しました（{GC_RETENTION_DAYS}日超）")
+        if not args.dry_run:
+            save_history(history)
+
     client = get_x_client()
 
     daily_limit = config.get("daily_like_limit", 20)
@@ -370,68 +491,12 @@ def main():
         else:
             remaining_users.append(user)
 
-    # --- 結果出力 ---
-    total_likes_today = sum(u["likes_count"] for u in today_users)
-    like_back_count = sum(1 for u in today_users if u.get("source") == "like_back")
-    new_follower_count = sum(1 for u in today_users if u.get("source") == "new_follower")
-
-    result = {
-        "timestamp": datetime.now(JST).isoformat(),
-        "tweets_checked": len(tweets),
-        "total_likers": len(all_likers),
-        "new_users": len(new_likers),
-        "skipped_users": len(skipped_likers),
-        "new_followers_detected": len(new_follower_targets),
-        "total_likes_planned": total_likes_today,
-        "today": [
-            {
-                "username": u["username"],
-                "name": u["name"],
-                "followers": u["followers"],
-                "source_tweets": u["source_tweets"],
-                "likes_count": u["likes_count"],
-                "source": u.get("source", "like_back"),
-            }
-            for u in today_users
-        ],
-        "remaining": [u["username"] for u in remaining_users],
-    }
-
-    output_file = SKILL_DIR / "target_users.json"
-    if not args.dry_run:
-        output_file.write_text(
-            json.dumps(result, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        print(f"\n[OK] {output_file} に出力しました")
-    else:
-        print(f"\n[DRY-RUN] 出力内容:")
-
-    # サマリ表示
-    print(f"\n{'='*50}")
-    print(f"本日の対象: {len(today_users)}人 / いいね計{total_likes_today}件 (上限: {daily_limit}件)")
-    if like_back_count > 0:
-        print(f"  いいね返し: {like_back_count}人")
-    if new_follower_count > 0:
-        print(f"  新規フォロワー: {new_follower_count}人")
-    print(f"{'='*50}")
-
-    for i, u in enumerate(today_users, 1):
-        source_label = " [NEW FOLLOWER]" if u.get("source") == "new_follower" else ""
-        repeat_mark = " [REPEATER]" if u.get("source") == "like_back" and u.get("likes_count", 1) > 1 else ""
-        print(f"  {i:2d}. @{u['username']:<20s} ({u['followers']:,}フォロワー) → {u['likes_count']}L{repeat_mark}{source_label}")
-
-    if remaining_users:
-        print(f"\n本日スキップ（予算超過）: {len(remaining_users)}人")
-        for u in remaining_users:
-            print(f"  - @{u['username']}")
-
-    # APIコスト計算（ツイート取得1回 + liking_users N回 + フォロワー取得M回）
-    api_cost = 0.005 * (1 + len(tweets)) + 0.010 * follower_api_calls
-    cost_parts = [f"ツイート取得1回 + liking_users{len(tweets)}回"]
-    if follower_api_calls > 0:
-        cost_parts.append(f"followers{follower_api_calls}回")
-    print(f"\nAPIコスト: ${api_cost:.3f} ({' + '.join(cost_parts)})")
+    # --- 結果出力・保存 ---
+    output_and_save(
+        today_users, remaining_users, new_likers, skipped_likers,
+        new_follower_targets, all_likers, tweets, follower_api_calls,
+        daily_limit, args.dry_run,
+    )
 
 
 if __name__ == "__main__":
