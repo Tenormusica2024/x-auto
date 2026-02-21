@@ -12,7 +12,7 @@
 - [2026-02-18] 技術トピックの固有名詞必須 → `expression-rules.md` に反映済み
 - [2026-02-18] 柔らかさ > 情報精度 → `expression-rules.md` に反映済み
 - [2026-02-18] 改行パターン固定化: 複数案を出すときはパターンをバラす → `format-rules.md` に反映済み
-- [2026-02-18] フロー省略の根本問題と構造的対策: ステップ13（レビューサブエージェント）を省略禁止 → `generate-tweet/PROMPT.md`, `generate-tweet/SKILL.md`, `review-tweet/PROMPT.md` に反映済み
+- [2026-02-18] フロー省略の根本問題と構造的対策: ステップ13（レビューサブエージェント）を省略禁止 → `generate-tweet/PROMPT.md`, `review-tweet/PROMPT.md` に反映済み
 - [2026-02-18] メタ言及 vs 実践 → `value-rules.md` に反映済み
 - [2026-02-18] 口調の柔らかさ不足 → `expression-rules.md` に反映済み
 - [2026-02-18] 中性的柔らかさのキャリブレーション: 柔らかい語尾は全語尾の約40%(±10%) → `expression-rules.md` に反映済み

@@ -17,13 +17,14 @@ import json
 import sys
 import time
 import argparse
+from dataclasses import dataclass, field
 import tweepy
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 # x_client.py を参照するためにパスを追加
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
-from x_client import get_x_client, MY_USER_IDS
+from x_client import get_x_client, PRIMARY_USER_ID, MY_USER_IDS
 
 # --- 定数 ---
 JST = timezone(timedelta(hours=9))
@@ -31,8 +32,7 @@ SKILL_DIR = Path(__file__).resolve().parent
 HISTORY_FILE = SKILL_DIR / "like_history.json"
 CONFIG_FILE = SKILL_DIR / "config.json"
 SNAPSHOT_FILE = SKILL_DIR / "follower_snapshot.json"
-# x_client.pyのMY_USER_IDSから主アカウントIDを取得（重複定義を回避）
-MY_USER_ID = next(iter(MY_USER_IDS))  # @SundererD27468
+MY_USER_ID = PRIMARY_USER_ID  # x_client.pyの定数を参照（@SundererD27468）
 
 
 def load_config() -> dict:
@@ -55,8 +55,8 @@ def load_history() -> dict:
 
 
 def save_history(history: dict) -> None:
-    """like_history.jsonを保存。現在はCiC（PROMPT.md）側で履歴更新するため未使用。
-    将来のAPI直接いいね実装時に使用予定。"""
+    """like_history.jsonを保存。GC（purge_old_history）後の書き戻しで使用。
+    いいね実行後の個別エントリ追記はCiC（PROMPT.md）側が担当。"""
     HISTORY_FILE.write_text(
         json.dumps(history, ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -80,7 +80,7 @@ def purge_old_history(history: dict, retention_days: int = GC_RETENTION_DAYS) ->
             entry_dt = datetime.fromisoformat(last_liked)
             if entry_dt < cutoff:
                 to_delete.append(username)
-        except ValueError:
+        except (ValueError, TypeError):
             continue
     for username in to_delete:
         del processed[username]
@@ -253,45 +253,48 @@ def detect_new_followers(current_followers: list[dict], snapshot: dict) -> list[
 
 def filter_by_history(users: list[dict], history: dict) -> tuple[list[dict], list[dict]]:
     """履歴と照合して未処理/処理済みに分ける。一度処理したユーザーは永久にスキップ。
-    user_idとusername両方で照合（旧データ互換性維持）。"""
+    like_history.jsonのキーはusernameで管理（CiC側のPROMPT.mdと統一）。"""
     new_users = []
     skipped_users = []
-
     processed = history.get("processed", {})
-    # user_idベースの逆引きマップを構築（旧エントリにuser_idがある場合用）
-    processed_ids = {
-        entry.get("user_id") for entry in processed.values() if entry.get("user_id")
-    }
 
     for user in users:
-        # user_idで照合（優先）→ usernameでフォールバック（旧データ互換）
-        if user.get("id") in processed_ids or user["username"] in processed:
+        if user["username"] in processed:
             skipped_users.append(user)
-            continue
-        new_users.append(user)
+        else:
+            new_users.append(user)
 
     return new_users, skipped_users
 
 
-def output_and_save(
-    today_users: list, remaining_users: list,
-    new_likers: list, skipped_likers: list,
-    new_follower_targets: list, all_likers: dict,
-    tweets: list, follower_api_calls: int,
-    daily_limit: int, dry_run: bool,
-) -> None:
-    """結果をtarget_users.jsonに出力し、サマリを表示"""
-    total_likes_today = sum(u["likes_count"] for u in today_users)
-    like_back_count = sum(1 for u in today_users if u.get("source") == "like_back")
-    new_follower_count = sum(1 for u in today_users if u.get("source") == "new_follower")
+@dataclass
+class CollectionResult:
+    """collect_likers.pyの収集結果をまとめるデータクラス"""
+    today_users: list = field(default_factory=list)
+    remaining_users: list = field(default_factory=list)
+    new_likers: list = field(default_factory=list)
+    skipped_likers: list = field(default_factory=list)
+    new_follower_targets: list = field(default_factory=list)
+    all_likers: dict = field(default_factory=dict)
+    tweets: list = field(default_factory=list)
+    follower_api_calls: int = 0
+    daily_limit: int = 20
+    dry_run: bool = False
 
-    result = {
+
+def output_and_save(cr: CollectionResult) -> None:
+    """結果をtarget_users.jsonに出力し、サマリを表示"""
+    total_likes_today = sum(u["likes_count"] for u in cr.today_users)
+    like_back_count = sum(1 for u in cr.today_users if u.get("source") == "like_back")
+    new_follower_count = sum(1 for u in cr.today_users if u.get("source") == "new_follower")
+
+    output_data = {
         "timestamp": datetime.now(JST).isoformat(),
-        "tweets_checked": len(tweets),
-        "total_likers": len(all_likers),
-        "new_users": len(new_likers),
-        "skipped_users": len(skipped_likers),
-        "new_followers_detected": len(new_follower_targets),
+        "tweets_checked": len(cr.tweets),
+        "total_likers": len(cr.all_likers),
+        "new_users": len(cr.new_likers),
+        "skipped_users": len(cr.skipped_likers),
+        "new_followers_detected": len(cr.new_follower_targets),
         "total_likes_planned": total_likes_today,
         "today": [
             {
@@ -303,15 +306,15 @@ def output_and_save(
                 "likes_count": u["likes_count"],
                 "source": u.get("source", "like_back"),
             }
-            for u in today_users
+            for u in cr.today_users
         ],
-        "remaining": [u["username"] for u in remaining_users],
+        "remaining": [u["username"] for u in cr.remaining_users],
     }
 
     output_file = SKILL_DIR / "target_users.json"
-    if not dry_run:
+    if not cr.dry_run:
         output_file.write_text(
-            json.dumps(result, ensure_ascii=False, indent=2),
+            json.dumps(output_data, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         print(f"\n[OK] {output_file} に出力しました")
@@ -320,28 +323,28 @@ def output_and_save(
 
     # サマリ表示
     print(f"\n{'='*50}")
-    print(f"本日の対象: {len(today_users)}人 / いいね計{total_likes_today}件 (上限: {daily_limit}件)")
+    print(f"本日の対象: {len(cr.today_users)}人 / いいね計{total_likes_today}件 (上限: {cr.daily_limit}件)")
     if like_back_count > 0:
         print(f"  いいね返し: {like_back_count}人")
     if new_follower_count > 0:
         print(f"  新規フォロワー: {new_follower_count}人")
     print(f"{'='*50}")
 
-    for i, u in enumerate(today_users, 1):
+    for i, u in enumerate(cr.today_users, 1):
         source_label = " [NEW FOLLOWER]" if u.get("source") == "new_follower" else ""
         repeat_mark = " [REPEATER]" if u.get("source") == "like_back" and u.get("likes_count", 1) > 1 else ""
         print(f"  {i:2d}. @{u['username']:<20s} ({u['followers']:,}フォロワー) → {u['likes_count']}L{repeat_mark}{source_label}")
 
-    if remaining_users:
-        print(f"\n本日スキップ（予算超過）: {len(remaining_users)}人")
-        for u in remaining_users:
+    if cr.remaining_users:
+        print(f"\n本日スキップ（予算超過）: {len(cr.remaining_users)}人")
+        for u in cr.remaining_users:
             print(f"  - @{u['username']}")
 
     # APIコスト計算（ツイート取得1回 + liking_users N回 + フォロワー取得M回）
-    api_cost = 0.005 * (1 + len(tweets)) + 0.010 * follower_api_calls
-    cost_parts = [f"ツイート取得1回 + liking_users{len(tweets)}回"]
-    if follower_api_calls > 0:
-        cost_parts.append(f"followers{follower_api_calls}回")
+    api_cost = 0.005 * (1 + len(cr.tweets)) + 0.010 * cr.follower_api_calls
+    cost_parts = [f"ツイート取得1回 + liking_users{len(cr.tweets)}回"]
+    if cr.follower_api_calls > 0:
+        cost_parts.append(f"followers{cr.follower_api_calls}回")
     print(f"\nAPIコスト: ${api_cost:.3f} ({' + '.join(cost_parts)})")
 
 
@@ -389,21 +392,21 @@ def main():
 
     # --- ステップ2: 各ツイートのいいねユーザー収集 ---
     print(f"\n[2/{total_steps}] いいねユーザー収集中...")
-    all_likers = {}  # username -> user info + source_tweets
+    all_likers = {}  # user_id -> user info + source_tweets
     for tweet in tweets:
         likers = get_liking_users(client, tweet["id"])
         for user in likers:
-            username = user["username"]
-            if username not in all_likers:
-                all_likers[username] = {**user, "source_tweets": []}
-            all_likers[username]["source_tweets"].append(tweet["id"])
+            uid = user["id"]
+            if uid not in all_likers:
+                all_likers[uid] = {**user, "source_tweets": []}
+            all_likers[uid]["source_tweets"].append(tweet["id"])
 
     print(f"  ユニークユーザー: {len(all_likers)}人")
 
     # リピーター検出（複数ツイートにいいねした人）
-    repeaters = {u: info for u, info in all_likers.items() if len(info["source_tweets"]) > 1}
+    repeaters = {uid: info for uid, info in all_likers.items() if len(info["source_tweets"]) > 1}
     if repeaters:
-        repeater_strs = [f"@{u}({len(info['source_tweets'])}回)" for u, info in repeaters.items()]
+        repeater_strs = [f"@{info['username']}({len(info['source_tweets'])}回)" for info in repeaters.values()]
         print(f"  リピーター: {', '.join(repeater_strs)}")
 
     # 履歴差分でいいね返し対象を抽出
@@ -433,40 +436,40 @@ def main():
             # 空リストの場合はAPIエラーの可能性が高い → スナップショット更新しない
             if not current_followers:
                 print("  [WARN] フォロワーリストが空。API障害の可能性。スナップショット更新をスキップ")
-                raise ValueError("Empty follower list")
-
-            snapshot = load_follower_snapshot()
-
-            if snapshot is None:
-                # 初回実行: スナップショット保存のみ、いいねなし
-                print("  [INFO] 初回実行: フォロワースナップショットを保存（いいねなし）")
-                if not args.dry_run:
-                    save_follower_snapshot(current_followers)
+                print("  [INFO] いいね返しのみ実行します")
             else:
-                raw_new_followers = detect_new_followers(current_followers, snapshot)
-                print(f"  新規フォロワー（前回差分）: {len(raw_new_followers)}人")
+                snapshot = load_follower_snapshot()
 
-                if raw_new_followers:
-                    # 履歴フィルタで二重いいね防止
-                    new_followers, skipped_followers = filter_by_history(
-                        raw_new_followers, history
-                    )
-                    if skipped_followers:
-                        print(f"  スキップ（履歴重複）: {len(skipped_followers)}人")
+                if snapshot is None:
+                    # 初回実行: スナップショット保存のみ、いいねなし
+                    print("  [INFO] 初回実行: フォロワースナップショットを保存（いいねなし）")
+                    if not args.dry_run:
+                        save_follower_snapshot(current_followers)
+                else:
+                    raw_new_followers = detect_new_followers(current_followers, snapshot)
+                    print(f"  新規フォロワー（前回差分）: {len(raw_new_followers)}人")
 
-                    # sourceマーカーといいね数を付与
-                    for user in new_followers:
-                        user["source"] = "new_follower"
-                        user["likes_count"] = new_follower_likes
-                        user["source_tweets"] = []
+                    if raw_new_followers:
+                        # 履歴フィルタで二重いいね防止
+                        new_followers, skipped_followers = filter_by_history(
+                            raw_new_followers, history
+                        )
+                        if skipped_followers:
+                            print(f"  スキップ（履歴重複）: {len(skipped_followers)}人")
 
-                    new_follower_targets = new_followers
-                    for u in new_follower_targets:
-                        print(f"    + @{u['username']} ({u['followers']:,}フォロワー) [NEW FOLLOWER]")
+                        # sourceマーカーといいね数を付与
+                        for user in new_followers:
+                            user["source"] = "new_follower"
+                            user["likes_count"] = new_follower_likes
+                            user["source_tweets"] = []
 
-                # スナップショットを最新状態に更新
-                if not args.dry_run:
-                    save_follower_snapshot(current_followers)
+                        new_follower_targets = new_followers
+                        for u in new_follower_targets:
+                            print(f"    + @{u['username']} ({u['followers']:,}フォロワー) [NEW FOLLOWER]")
+
+                    # スナップショットを最新状態に更新
+                    if not args.dry_run:
+                        save_follower_snapshot(current_followers)
 
         except Exception as e:
             # フォロワー検出失敗時もいいね返しは続行
@@ -492,11 +495,18 @@ def main():
             remaining_users.append(user)
 
     # --- 結果出力・保存 ---
-    output_and_save(
-        today_users, remaining_users, new_likers, skipped_likers,
-        new_follower_targets, all_likers, tweets, follower_api_calls,
-        daily_limit, args.dry_run,
-    )
+    output_and_save(CollectionResult(
+        today_users=today_users,
+        remaining_users=remaining_users,
+        new_likers=new_likers,
+        skipped_likers=skipped_likers,
+        new_follower_targets=new_follower_targets,
+        all_likers=all_likers,
+        tweets=tweets,
+        follower_api_calls=follower_api_calls,
+        daily_limit=daily_limit,
+        dry_run=args.dry_run,
+    ))
 
 
 if __name__ == "__main__":

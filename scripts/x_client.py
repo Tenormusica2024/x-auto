@@ -12,10 +12,11 @@ import tweepy
 import requests
 from dotenv import load_dotenv
 
-# --- 自分のアカウント情報（キーパーソン蓄積から除外する用） ---
-MY_USER_IDS = {
-    "1805557649876172801",  # @SundererD27468（API連携アカウント）
-}
+# --- 自分のアカウント情報 ---
+# PRIMARY_USER_ID: API操作の主体（collect_likers.py等から参照）
+# MY_USER_IDS: キーパーソン蓄積から除外するためのset
+PRIMARY_USER_ID = "1805557649876172801"  # @SundererD27468（API連携アカウント）
+MY_USER_IDS = {PRIMARY_USER_ID}
 
 # --- パス定数 ---
 ENV_PATH = Path(r"C:\Users\Tenormusica\x-auto-posting\.env")
