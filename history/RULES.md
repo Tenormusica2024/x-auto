@@ -107,10 +107,39 @@ recent_sources = [s["url"] for t in tweets[-10:] for s in t["sources"]]
 
 ---
 
+---
+
+## ユーザー修正ログ（user_corrections_log.json）
+
+ユーザーがツイート生成セッション中に行った修正指摘を蓄積する。
+rejection_log（AI判定の落選）とは異なり、**人間の判断による品質フィードバック**を記録。
+
+### 記録タイミング
+
+- ツイート文の修正指示（表現・語尾・構成・トーン等）
+- A判定ツイートの採用拒否 + 理由説明
+- 生成ルール・判定基準への改善要求
+
+### 二軸フィードバック
+
+| 軸 | 操作 | 即効性 |
+|----|------|--------|
+| スキルファイル直接編集 | ユーザー指摘 → 該当ルール修正 | 次回から即反映 |
+| user_corrections_log記録 | ユーザー指摘 → ログに蓄積 | 傾向分析・パターン検出 |
+
+両軸を常にセットで実行する。片方だけでは不完全。
+
+### 参照手順
+
+`common/user-corrections-ref.md` を参照。
+
+---
+
 ## 関連ファイル
 
 - `x-auto/history/adopted_tweets.json` - 採用済みツイート履歴（成功パターン）
 - `x-auto/history/rejection_log.json` - 落選理由ログ（失敗パターン。tweet-quality-judgeがB/C/D判定時に記録）
+- `x-auto/history/user_corrections_log.json` - ユーザー修正ログ（人間フィードバックの蓄積）
 - `x-auto/drafts/` - 下書き保存（未確定）
 - `x-auto/skills/generate-tweet/` - 通常ツイート生成
 - `x-auto/skills/long-form-tweet/` - 長文ツイート生成

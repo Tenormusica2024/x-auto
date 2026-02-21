@@ -53,6 +53,10 @@ zeitgeist-snapshot.json を読み込んで日本AI界隈の空気感を確認す
 
 `common/rejection-log-ref.md` の手順に従い、直近の落選パターンを把握して同じ失敗を回避する。
 
+### ステップ0.9: ユーザー修正傾向の確認
+
+`common/user-corrections-ref.md` の手順に従い、ユーザーが過去に行った修正指摘の傾向を把握して事前回避する。
+
 ---
 
 ### ステップ1: トーン決定

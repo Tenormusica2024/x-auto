@@ -37,6 +37,7 @@ tom-style-tweet/
 1.5. common/content-strategy-ref.md を読み込み、W-Scoreが高いcontent_typeを把握
      （存在しない場合はスキップ）
 1.7. common/rejection-log-ref.md の手順に従い、直近の落選傾向を確認して同じ失敗を回避
+1.8. common/user-corrections-ref.md の手順に従い、ユーザー修正傾向を確認して事前回避
 2. TOPIC_DEPTH_ANALYSIS.md でトピック・深度を決定
 3. 重複チェック（下記参照）
 4. 5つのパターンから選択して生成:
