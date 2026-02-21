@@ -49,6 +49,21 @@ zeitgeist-snapshot.json を読み込んで日本AI界隈の空気感を確認す
 
 ---
 
+### ステップ0.8: 過去の落選パターン確認
+
+`history/rejection_log.json` を読み込み、直近の落選パターンを把握して同じ失敗を回避する。
+
+**読み込み先:** `C:\Users\Tenormusica\x-auto\history\rejection_log.json`
+
+**活用方法:**
+1. `rejections` 配列の直近10件を確認
+2. `primary_failure` の頻出項目を特定（例: `expression_quality` が連続 → 敬語調に注意）
+3. `failure_reason` の具体的内容を確認し、同じミスを避ける
+
+**注意:** rejection_log.json が存在しない/空の場合はスキップ。
+
+---
+
 ### ステップ1: トーン決定
 
 #### 新ツール紹介の場合（デフォルト: 肯定的）

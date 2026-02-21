@@ -36,6 +36,8 @@ tom-style-tweet/
 1. TOM_STYLE_PROMPT.md を読み込む
 1.5. common/content-strategy-ref.md を読み込み、W-Scoreが高いcontent_typeを把握
      （存在しない場合はスキップ）
+1.7. history/rejection_log.json を読み込み、直近の落選傾向を確認して同じ失敗を回避
+     （存在しない/空の場合はスキップ）
 2. TOPIC_DEPTH_ANALYSIS.md でトピック・深度を決定
 3. 重複チェック（下記参照）
 4. 5つのパターンから選択して生成:

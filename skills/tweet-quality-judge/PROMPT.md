@@ -236,7 +236,7 @@
   "grade": "B/C/D",
   "content_type": "ai_news/bip/opinion/how-to/quote_rt/engagement/other",
   "topic_summary": "トピック要約（20字以内）",
-  "primary_failure": "最も低いスコアの評価項目名",
+  "primary_failure": "accuracy/freshness/discourse_freshness/practicality/verifiability/developer_value/post_value/expression_quality のいずれか",
   "failure_reason": "不合格の具体的理由（1-2文）",
   "scores": {
     "accuracy": 点数,
