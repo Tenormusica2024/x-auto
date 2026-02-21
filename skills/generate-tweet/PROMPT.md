@@ -61,6 +61,29 @@ zeitgeist-snapshot.json を読み込んで日本AI界隈の空気感を確認す
 
 **注意:** このファイルはcontent_evaluator.pyが毎日自動更新。存在しない場合はスキップ。
 
+### ステップ4.5: バズツイートシード選定（BIP/TIP系で活用推奨）
+
+蓄積されたバズツイートデータを参照し、ツイート生成の**種（シード）**候補を選定する。
+詳細ルールは `common/value-rules.md` の「バズツイートシード戦略」セクションを参照。
+
+**データソース（優先順）:**
+1. `scripts/data/themed-buzz-*.json` — テーマ特化バズ（精度が高い、優先参照）
+2. `scripts/data/buzz_content_evaluations.json` — Groq分類済みバズ（content_type/originality付き）
+3. `scripts/data/buzz-tweets-latest.json` — 直近の生バズツイート
+
+**選定手順:**
+1. テーマ特化バズ → 分類済みバズ → 生バズの順にスキャン
+2. content_type: opinion/bip/how-to/ai_news/data_insight、originality >= 3でフィルタ
+3. persona-dbと整合性のあるネタを3-5件ピックアップ
+4. ピックアップした種ツイートの「方向性・洞察の核」だけを抽出（文面は使わない）
+
+**活用タイミング:**
+- ユーザーがネタを提供済み → シード不要（ステップ5をスキップ可）
+- ユーザーがネタ未指定 or BIP/TIP系 → シードを積極的に活用
+- ステップ5の並列検索と**併用可能**（シード + 最新ニュースの組み合わせ）
+
+**加工の鉄則:** 種ツイートの方向性だけ借り、表現・構造・具体例・洞察は全て独自構築する（value-rules.md準拠）。
+
 ### ステップ5: ネタ選定（並列検索構造）
 
 **並列検索サブエージェントで多角的にネタを探索**

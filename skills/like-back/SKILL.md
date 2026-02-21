@@ -1,7 +1,7 @@
 # like-back スキル定義
 
 ## 発火条件
-「いいね返し」「like back」「2倍返し」「いいね返しスキル」「新規フォロワーいいね」
+「いいね返し」「like back」「等価返し」「いいね返しスキル」「新規フォロワーいいね」
 
 ## 前提条件
 - Claude in Chrome が使用可能であること
@@ -20,7 +20,7 @@ skills/like-back/
 ├── SKILL.md              # 本ファイル（スキル定義）
 ├── PROMPT.md             # CiC操作手順（実行時参照）
 ├── collect_likers.py     # API: いいねユーザー収集 + 新規フォロワー検出
-├── config.json           # 設定（日次上限・リピーターボーナス・履歴有効期間・新規フォロワー）
+├── config.json           # 設定（日次上限・新規フォロワー）
 ├── like_history.json     # 処理履歴
 ├── target_users.json     # collect_likers.py の出力（CiCが読む）
 ├── follower_snapshot.json # フォロワースナップショット（自動生成・差分検出用）

@@ -42,6 +42,8 @@ PS1
 ```
 → テキストエリアをクリック → `key("ctrl+v")` → wait(3秒) → スクショ確認
 
+**注意:** IMAGE_PATHにはローカルファイルパスのみ使用すること（UNCパス `\\server\share\...` は禁止）
+
 **詳細な手順・フォールバック方法:** `~/.claude/skills/x-draft-saver/SKILL.md` Phase 3 参照
 
 ### ステップ4: 投稿前確認

@@ -1,83 +1,68 @@
 # x-auto TODO
 
-## DONE: content-strategy-ref.mdのガイダンス動的生成
+## Feature 5: 週次サマリー自動生成
 
-`_generate_dynamic_guidance()` として実装完了。
+ロードマップ: `x-auto-feature-roadmap.md` Feature 5
 
-### 実装内容
-- ハードコードされたif-elif文を廃止し、蓄積データの相対的位置関係から文言を自動導出
-- サンプル数 n<3 → 「データ不足」、n<5 → 「参考値」注記
-- 順位ベースのポジション表現（W-Score最高/上位/下位）
-- W-Score対imp比から特性を自動判定（深い反応/拡散力/両方高い/両方低調）
-- データが変わればガイダンス文言も自動的に変わる
-
----
-
-## DONE: ツイート効果評価ツール
-
-2つのパイプラインで実現:
-- **content_evaluator.py**: 自己ツイートのW-Score評価 + 7軸分類（ソースA）
-- **buzz_content_analyzer.py**: 他者バズツイートの7軸分類 + パターン抽出（ソースB）
-- **content-strategy-ref.md**: 両分析の統合ガイダンスを自動生成
-
-元々の「投稿効果の定量評価」は、W-Score（Xアルゴリズム重み付きエンゲージメント）と多次元分類の組み合わせで達成
-
----
-
-## DONE: 他者ツイート分析パイプライン（buzz_content_analyzer.py）
-
-`buzz_content_analyzer.py` として実装完了。Task Scheduler 06:45 登録済み。
+### 概要
+日次レポートの蓄積を週1で振り返り、トレンドと改善ポイントを可視化する。
+データは2026-02-12から蓄積済み（1ヶ月超）で実装可能な状態。
 
 ### 実装内容
-- `buzz-tweets-latest.json` → Groq LLM 7軸分類（content_type/originality/media_contribution/news_saturation/bip_authenticity/ai_citation_value/virality_factor）
-- `buzz_content_evaluations.json` に30日蓄積（GC付き）
-- key_persons.json照合（username逆引き）
-- content-strategy-ref.mdのマルチソース構造（ソースA: 自己 / ソースB: 他者 / 統合ガイダンス）
-- Obsidianレポート（buzz-eval-YYYY-MM-DD.md）
+- 今週のベスト/ワーストツイート（TOP3/BOTTOM3）
+- エンゲージメント率の週間推移
+- 前週比の成長率
+- content_type別パフォーマンス（content_evaluator.py蓄積データ活用）
+- 今週検出されたホットトピック一覧
+- 来週のおすすめ（高エンゲージカテゴリ・時間帯）
 
-### 下流連携
-
-- DONE: `content-strategy-ref.md`: ソースA+Bの統合ガイダンス動的生成（4象限分析: 最強カテゴリ/改善チャンス/ニッチ強み + 自分のW-Score実数値付き）
-- DONE: `discourse-freshness.md`: fetch_buzz_db.pyにbuzz_content_evaluations統合 + SKILL.mdのStep 2/5にバズ分類定量根拠の活用ガイダンス追記
-- DONE: `zeitgeist-snapshot.json`: buzz_content_evaluations.jsonからcontent_type/virality_factor分布を集計し、スナップショットにbuzz_content_analysisフィールドとして統合
+### 実装方針
+- 新スクリプト: `weekly_summary.py`
+- Task Scheduler: 毎週日曜 22:00
+- 入力: `metrics_history.json` + `tweet_details.json` + `content_evaluations.json` + 日次Obsidianレポート
+- 出力: Obsidian週報 + Discord通知
+- 追加APIコスト: $0（蓄積データの集約のみ）
 
 ---
 
-## content_evaluator.py 拡張
+## Feature 4: 生成パイプライン強化（部分達成）
 
-### DONE: 好感度/レピュテーションリスク判定
+ロードマップ: `x-auto-feature-roadmap.md` Feature 4
 
-`reputation_risk`（1-5）としてCLASSIFICATION_PROMPTに7軸目を追加。
+### 達成済み部分
+- 4a. persona-db連携 → `common/persona-ref.md` + generate-tweetフロー内で実現済み
+- 4c. Discord通知強化 → `#tweet-drafts` チャネルで文案自動保存済み
 
-- 「インプは高いが反感を買う」パターンの検出（リスク3以上をフラグ表示）
-- 煽り系・二次利用感のあるコンテンツのリスクスコア化
-- Obsidianレポートにレピュテーションリスク分析セクション追加
-- content-strategy-ref.md（ソースA）にリスクインサイト追加
-- 個別ツイート評価一覧でリスク2以上を表示
+### 残タスク
+- 4b. 高エンゲージパターンの自動適用
+  - content-strategy-ref.mdにデータはあるが、trend_detectorの下書き生成には未反映
+  - `generate_draft()` がcontent_type別のW-Scoreデータを参照して構造を最適化する仕組み
 
-### DONE: AIエージェントSEO適性の精度向上
+---
 
-ai_citation_valueを5項目チェックリスト方式に改修済み:
-- 独自データや具体的な数値を含む
-- 再現可能な具体手順を含む
-- 個人の実体験に基づく知見
-- 他で見つからない一次情報
-- 検証可能な主張（リンク・ソース・スクショ付き）
+## Feature 6: エンゲージメント返し自動化（部分実装）
 
-### DONE: コンテンツ戦略の方向性反映
+ロードマップ: `x-auto-feature-roadmap.md` Feature 6
 
-`_generate_dynamic_guidance()`のW-Scoreベース自動ランキングにより、データドリブンで反映済み:
-- ニュース系はW-Score実績から自動的に「下位」表示
-- BIPはW-Score実績から自動的に「上位」表示
-- `bip_authenticity`（1-5）でBIPの質を段階評価
-- `news_saturation`で速報性を段階評価（first_mover/early/mainstream/late/rehash）
+### 現状
+- `skills/like-back/SKILL.md` でCiCベースのいいね返しは実装済み
+- ただしロードマップ記載のAPI半自動方式（常連検出→候補提示→承認→一括実行）は未実装
 
-### DONE: ニュース飽和度の定量化
+### 残タスク
+- 常連エンゲージャーの自動検出・ランキング化
+- 日次Discord通知での候補提示
+- 承認後のX API経由一括いいね
+- 月$3-6（コスト承認ルール的に事前確認が必要）
 
-`saturation_quantifier.py` として実装。
+---
 
-- Groq LLMでai_newsツイートからトピックキーワードを抽出（2-4語の特定性の高いフレーズ）
-- twscrapeで同トピックのツイート件数を72h以内で実測
-- 件数シグナル（40%）+ 時間シグナル（35%）+ キーパーソンシグナル（25%）の重み付け合成でスコア算出
-- content_evaluator.py `--quantitative` フラグで統合実行可能
-- 結果は content_evaluations.json の `saturation_quantitative` フィールドに保存
+## ロードマップ更新
+
+`x-auto-feature-roadmap.md` 自体が2026-02-13時点で古い。
+以下のスクリプトが未反映:
+- zeitgeist_detector.py
+- buzz_tweet_extractor.py / buzz_content_analyzer.py
+- content_evaluator.py / saturation_quantifier.py
+- themed_buzz_extractor.py
+
+次回整理時にロードマップを現状に同期する。

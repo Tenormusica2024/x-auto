@@ -1,8 +1,9 @@
 r"""
-collect_likers.py - いいねユーザー一括収集 + 新規フォロワー検出 + 履歴差分算出
+collect_likers.py - いいね等価返し用ユーザー収集 + 新規フォロワー検出
 
 X API経由で自分の最新ツイートにいいねした人を収集し、
-さらに新規フォロワーを検出して、未処理ユーザーリストを出力する。
+もらった数と同じ数だけいいねを返す（等価返し）ための対象リストを出力する。
+一度処理したユーザーは永久にスキップされる。
 
 使い方:
   cd C:\Users\Tenormusica\x-auto\skills\like-back
@@ -32,8 +33,6 @@ CONFIG_FILE = SKILL_DIR / "config.json"
 SNAPSHOT_FILE = SKILL_DIR / "follower_snapshot.json"
 MY_USER_ID = "1805557649876172801"  # @SundererD27468
 
-DEFAULT_HISTORY_EXPIRY_DAYS = 7
-
 
 def load_config() -> dict:
     """config.jsonを読み込む"""
@@ -41,7 +40,6 @@ def load_config() -> dict:
         return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     return {
         "daily_like_limit": 20,
-        "likes_per_user": 2,
         "tweet_check_count": 5,
         "enable_new_follower_likes": True,
         "new_follower_likes": 1,
@@ -219,23 +217,16 @@ def detect_new_followers(current_followers: list[dict], snapshot: dict) -> list[
 
 # --- 履歴フィルタ ---
 
-def filter_by_history(users: list[dict], history: dict, expiry_days: int = DEFAULT_HISTORY_EXPIRY_DAYS) -> tuple[list[dict], list[dict]]:
-    """履歴と照合して未処理/処理済みに分ける"""
-    now = datetime.now(JST)
-    expiry_threshold = now - timedelta(days=expiry_days)
-
+def filter_by_history(users: list[dict], history: dict) -> tuple[list[dict], list[dict]]:
+    """履歴と照合して未処理/処理済みに分ける。一度処理したユーザーは永久にスキップ。"""
     new_users = []
     skipped_users = []
 
     for user in users:
         username = user["username"]
         if username in history.get("processed", {}):
-            last_liked = history["processed"][username].get("last_liked_at", "")
-            if last_liked:
-                last_liked_dt = datetime.fromisoformat(last_liked)
-                if last_liked_dt > expiry_threshold:
-                    skipped_users.append(user)
-                    continue
+            skipped_users.append(user)
+            continue
         new_users.append(user)
 
     return new_users, skipped_users
@@ -244,7 +235,7 @@ def filter_by_history(users: list[dict], history: dict, expiry_days: int = DEFAU
 def main():
     parser = argparse.ArgumentParser(description="いいねユーザー収集 + 新規フォロワー検出")
     parser.add_argument("--dry-run", action="store_true", help="収集のみ（出力するが保存しない）")
-    parser.add_argument("--count", type=int, default=5, help="チェックするツイート数")
+    parser.add_argument("--count", type=int, default=None, help="チェックするツイート数（未指定時はconfig.jsonのtweet_check_count）")
     parser.add_argument("--no-followers", action="store_true", help="新規フォロワー検出をスキップ")
     args = parser.parse_args()
 
@@ -253,9 +244,8 @@ def main():
     client = get_x_client()
 
     daily_limit = config.get("daily_like_limit", 20)
-    likes_per_user = config.get("likes_per_user", 2)
-    repeater_bonus = config.get("repeater_bonus", 1)
-    history_expiry_days = config.get("history_expiry_days", DEFAULT_HISTORY_EXPIRY_DAYS)
+    # CLIの--countが未指定ならconfigのtweet_check_countを使う
+    tweet_count = args.count if args.count is not None else config.get("tweet_check_count", 5)
     enable_new_follower = config.get("enable_new_follower_likes", True)
     new_follower_likes = config.get("new_follower_likes", 1)
 
@@ -264,8 +254,8 @@ def main():
     total_steps = 4 if do_followers else 3
 
     # --- ステップ1: 最新ツイート取得 ---
-    print(f"[1/{total_steps}] 最新ツイート取得中（上位{args.count}件、いいね1件以上）...")
-    tweets = get_recent_tweets(client, MY_USER_ID, count=args.count)
+    print(f"[1/{total_steps}] 最新ツイート取得中（上位{tweet_count}件、いいね1件以上）...")
+    tweets = get_recent_tweets(client, MY_USER_ID, count=tweet_count)
     if not tweets:
         print("[!] いいねが付いたツイートが見つかりません")
         # ツイートがなくてもフォロワー検出は続行
@@ -297,15 +287,14 @@ def main():
 
     # 履歴差分でいいね返し対象を抽出
     liker_list = list(all_likers.values())
-    new_likers, skipped_likers = filter_by_history(liker_list, history, expiry_days=history_expiry_days)
+    new_likers, skipped_likers = filter_by_history(liker_list, history)
 
     print(f"  新規（未処理）: {len(new_likers)}人")
     print(f"  スキップ（処理済み）: {len(skipped_likers)}人")
 
-    # いいね返し数を算出（リピーターにはボーナス加算）
+    # いいね返し数を算出（等価返し: もらった数と同じ数を返す）
     for user in new_likers:
-        is_repeater = len(user.get("source_tweets", [])) > 1
-        user["likes_count"] = likes_per_user + (repeater_bonus if is_repeater else 0)
+        user["likes_count"] = len(user.get("source_tweets", []))
         user["source"] = "like_back"
 
     # --- ステップ2.5: 新規フォロワー検出 ---
@@ -339,7 +328,7 @@ def main():
                 if raw_new_followers:
                     # 履歴フィルタで二重いいね防止
                     new_followers, skipped_followers = filter_by_history(
-                        raw_new_followers, history, expiry_days=history_expiry_days
+                        raw_new_followers, history
                     )
                     if skipped_followers:
                         print(f"  スキップ（履歴重複）: {len(skipped_followers)}人")
@@ -429,11 +418,11 @@ def main():
 
     for i, u in enumerate(today_users, 1):
         source_label = " [NEW FOLLOWER]" if u.get("source") == "new_follower" else ""
-        repeat_mark = " [REPEATER]" if u.get("source") == "like_back" and u.get("likes_count", 2) > likes_per_user else ""
+        repeat_mark = " [REPEATER]" if u.get("source") == "like_back" and u.get("likes_count", 1) > 1 else ""
         print(f"  {i:2d}. @{u['username']:<20s} ({u['followers']:,}フォロワー) → {u['likes_count']}L{repeat_mark}{source_label}")
 
     if remaining_users:
-        print(f"\n翌日に持ち越し: {len(remaining_users)}人")
+        print(f"\n本日スキップ（予算超過）: {len(remaining_users)}人")
         for u in remaining_users:
             print(f"  - @{u['username']}")
 
