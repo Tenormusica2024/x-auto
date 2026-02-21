@@ -1,27 +1,8 @@
 # x-auto TODO
 
-## Feature 5: 週次サマリー自動生成
+## Feature 5: 週次サマリー自動生成 [DONE]
 
-ロードマップ: `x-auto-feature-roadmap.md` Feature 5
-
-### 概要
-日次レポートの蓄積を週1で振り返り、トレンドと改善ポイントを可視化する。
-データは2026-02-12から蓄積済み（1ヶ月超）で実装可能な状態。
-
-### 実装内容
-- 今週のベスト/ワーストツイート（TOP3/BOTTOM3）
-- エンゲージメント率の週間推移
-- 前週比の成長率
-- content_type別パフォーマンス（content_evaluator.py蓄積データ活用）
-- 今週検出されたホットトピック一覧
-- 来週のおすすめ（高エンゲージカテゴリ・時間帯）
-
-### 実装方針
-- 新スクリプト: `weekly_summary.py`
-- Task Scheduler: 毎週日曜 22:00
-- 入力: `metrics_history.json` + `tweet_details.json` + `content_evaluations.json` + 日次Obsidianレポート
-- 出力: Obsidian週報 + Discord通知
-- 追加APIコスト: $0（蓄積データの集約のみ）
+`scripts/weekly_summary.py` として実装済み。Task Scheduler登録待ち（毎週日曜 22:00）。
 
 ---
 

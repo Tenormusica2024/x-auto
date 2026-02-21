@@ -152,6 +152,7 @@ x-auto/
 │   ├── zeitgeist_detector.py    # AI界隈ムード検知（Groq LLM分類 → スナップショット生成）
 │   ├── buzz_tweet_extractor.py  # twscrapeバズツイート抽出（min_faves:500、zeitgeist補完用）
 │   ├── saturation_quantifier.py # ニュース飽和度の定量計測（twscrape実測 + Groqキーワード抽出）
+│   ├── weekly_summary.py        # 週次サマリー自動生成（TOP3/BOTTOM3 + content_type別 + 推奨事項）
 │   ├── grok_video_generator.py  # Grok動画パイプラインCLI
 │   ├── grok_video_prompts.py    # 5レイヤープロンプト生成エンジン
 │   └── data/              # 蓄積データJSON群
@@ -180,6 +181,7 @@ x-auto/
 | `daily_metrics.py` | 毎日 21:00 | imp/eng率分析 + フォロワー追跡 + パターン分析（時間帯/文字数） | ~$0.105 |
 | `content_evaluator.py` | 毎日 21:05 | ツイート多次元評価（content_type/originality/ai_citation_value等） + Obsidianレポート | $0.00 |
 | `saturation_quantifier.py` | 手動 or `--quantitative` | ai_newsのニュース飽和度をtwscrapeで定量計測（Groqキーワード抽出 + 件数実測） | $0.00 |
+| `weekly_summary.py` | 毎週日曜 22:00 | 週次サマリー自動生成（TOP3/BOTTOM3 + content_type別 + 時間帯/文字数パターン + 推奨事項） | $0.00 |
 | `discourse-freshness-updater` | 毎週日曜 20:00 | Grok APIで議論進行度マップ（discourse-freshness.md）を自動更新 | ~5-7円 |
 
 **実行方法（手動）:**
@@ -206,6 +208,9 @@ python -X utf8 content_evaluator.py --quantitative # 評価 + ai_news飽和度�
 python -X utf8 saturation_quantifier.py            # 飽和度定量計測（単体実行、直近5件）
 python -X utf8 saturation_quantifier.py --dry-run  # キーワード抽出のみ（twscrape検索なし）
 python -X utf8 saturation_quantifier.py --limit 10 # 計測件数指定
+python -X utf8 weekly_summary.py                   # 先週の週次サマリー生成
+python -X utf8 weekly_summary.py --weeks 1         # 先々週のサマリー生成
+python -X utf8 weekly_summary.py --dry-run         # 標準出力のみ（保存なし）
 ```
 
 **出力先:**
@@ -214,6 +219,7 @@ python -X utf8 saturation_quantifier.py --limit 10 # 計測件数指定
 - Obsidian評価(バズ): `VaultD\...\x-analytics\evaluations\buzz-eval-YYYY-MM-DD.md`
 - Obsidianトレンド: `VaultD\...\x-analytics\trends\trends-YYYY-MM-DD.md`
 - Obsidianムード: `VaultD\...\x-analytics\zeitgeist\zeitgeist-YYYY-MM-DD.md`
+- Obsidian週報: `VaultD\...\x-analytics\weekly\weekly-summary-YYYY-MM-DD.md`
 - 下書き: `x-auto\drafts\trend-YYYY-MM-DD-*.md`
 - Discord: #x-trend-alerts
 

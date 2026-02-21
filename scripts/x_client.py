@@ -22,6 +22,7 @@ ENV_PATH = Path(r"C:\Users\Tenormusica\x-auto-posting\.env")
 OBSIDIAN_BASE = Path(r"D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\x-analytics")
 OBSIDIAN_DAILY = OBSIDIAN_BASE / "daily"
 OBSIDIAN_TRENDS = OBSIDIAN_BASE / "trends"
+OBSIDIAN_WEEKLY = OBSIDIAN_BASE / "weekly"
 DRAFTS_DIR = Path(r"C:\Users\Tenormusica\x-auto\drafts")
 DATA_DIR = Path(r"C:\Users\Tenormusica\x-auto\scripts\data")
 FRONTIER_REPORT = Path(r"D:\antigravity_projects\VaultD\Projects\Monetization\Intelligence\AI_Frontier_Capabilities_Master.md")
