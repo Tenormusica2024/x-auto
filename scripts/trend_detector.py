@@ -21,6 +21,11 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, str(Path(__file__).parent))
+
+# メディア/企業アカウント除外（キーパーソンランキングから除外）
+# 運用中にニュースメディアが混入したら都度追加する
+MEDIA_USERNAMES = {"WSJJapan"}
+
 from x_client import (
     get_x_client, notify_discord, save_to_obsidian,
     today_str, now_str,
@@ -422,6 +427,7 @@ def get_top_key_persons(kp: dict, limit: int = 5) -> list[dict]:
         [
             {"author_id": aid, **data}
             for aid, data in kp["persons"].items()
+            if data.get("username", "") not in MEDIA_USERNAMES
         ],
         key=lambda p: p["total_likes"] + p["total_rts"],
         reverse=True,
@@ -544,14 +550,18 @@ def main():
             f"{len(results)}トピック分析完了。ホットトレンドなし（閾値: {args.threshold}）"
         )
 
-    # キーパーソンTOP3をDiscordにも表示
+    # キーパーソンTOP3をDiscordにも表示（表示名+関連トピック付き）
     if top_persons:
         discord_lines.append("\n注目キーパーソン:")
         for i, p in enumerate(top_persons[:3], 1):
             acct = f"@{p['username']}" if p.get('username') else p['author_id']
+            name = p.get('name', '')
+            # 関連トピックTOP3を表示（何について発信してるか分かるように）
+            top_topics = sorted(p.get("topics", {}).items(), key=lambda x: x[1], reverse=True)[:3]
+            topics_str = ", ".join(f"{t[0]}({t[1]})" for t in top_topics)
             discord_lines.append(
-                f"  {i}. {acct} (like:{p['total_likes']}, RT:{p['total_rts']}, "
-                f"出現:{p['total_appearances']}回)"
+                f"  {i}. {acct} ({name})\n"
+                f"     {topics_str} | like:{p['total_likes']}, RT:{p['total_rts']}"
             )
 
     notify_discord("\n".join(discord_lines))
