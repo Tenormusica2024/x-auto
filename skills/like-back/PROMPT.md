@@ -150,6 +150,6 @@ collect_likers.py 実行から CiC 開始までの間に別セッション（手
 
 ## 二重いいね防止（CRITICAL）
 - `like_history.json` は1ユーザー処理ごとに即座更新（フェーズ4参照）
-- `collect_likers.py` は履歴にあるユーザーを自動除外（`GC_RETENTION_DAYS`日以内、現在90日）
+- `collect_likers.py` は履歴にあるユーザーを永続的に自動除外（再いいね防止）
 - CiC実行開始前に `target_users.json` のユーザーが `like_history.json` に既に存在しないか再確認する
 - 不安な場合はフェーズ1の `collect_likers.py` を `--dry-run` で先に確認

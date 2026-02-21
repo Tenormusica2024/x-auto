@@ -3,7 +3,7 @@ collect_likers.py - いいね等価返し用ユーザー収集 + 新規フォロ
 
 X API経由で自分の最新ツイートにいいねした人を収集し、
 もらった数と同じ数だけいいねを返す（等価返し）ための対象リストを出力する。
-処理済みユーザーはGC_RETENTION_DAYS（90日）の間スキップされる。
+処理済みユーザーは永続的にスキップされる（再いいね防止）。
 
 使い方:
   cd C:\Users\Tenormusica\x-auto\skills\like-back
@@ -64,7 +64,7 @@ def load_history() -> dict:
 
 
 def save_history(history: dict) -> None:
-    """like_history.jsonを保存。GC（purge_old_history）後の書き戻しで使用。
+    """like_history.jsonを保存。手動メンテナンス時に使用。
     いいね実行後の個別エントリ追記はCiC（PROMPT.md）側が担当。"""
     try:
         HISTORY_FILE.write_text(
@@ -74,31 +74,6 @@ def save_history(history: dict) -> None:
     except OSError as e:
         print(f"  [ERROR] like_history.json の保存に失敗: {e}")
         raise
-
-
-GC_RETENTION_DAYS = 90  # 処理済みエントリの保持期間
-
-
-def purge_old_history(history: dict, retention_days: int = GC_RETENTION_DAYS) -> int:
-    """retention_days日以上前の処理済みエントリを削除してメモリを解放。
-    削除した件数を返す。"""
-    cutoff = datetime.now(JST) - timedelta(days=retention_days)
-    processed = history.get("processed", {})
-    to_delete = []
-    for username, entry in processed.items():
-        last_liked = entry.get("last_liked_at", "")
-        if not last_liked:
-            continue
-        try:
-            entry_dt = datetime.fromisoformat(last_liked)
-            if entry_dt < cutoff:
-                to_delete.append(username)
-        except (ValueError, TypeError):
-            print(f"  [WARN] {username} の last_liked_at をパースできません: {last_liked!r}")
-            continue
-    for username in to_delete:
-        del processed[username]
-    return len(to_delete)
 
 
 # --- フォロワースナップショット管理 ---
@@ -280,7 +255,7 @@ def detect_new_followers(current_followers: list[dict], snapshot: dict) -> list[
 # --- 履歴フィルタ ---
 
 def filter_by_history(users: list[dict], history: dict) -> tuple[list[dict], list[dict]]:
-    """履歴と照合して未処理/処理済みに分ける。GC_RETENTION_DAYS以内の処理済みユーザーはスキップ。
+    """履歴と照合して未処理/処理済みに分ける。処理済みユーザーは永続的にスキップ。
     like_history.jsonのキーはusernameで管理（CiC側のPROMPT.mdと統一）。"""
     new_users = []
     skipped_users = []
@@ -390,14 +365,6 @@ def main() -> None:
 
     config = load_config()
     history = load_history()
-
-    # 古い処理済みエントリのGC（90日超を削除）
-    # dry-run時はGCスキップ（in-place変異でhistoryが壊れ、filter_by_historyの結果がずれるため）
-    if not args.dry_run:
-        purged = purge_old_history(history)
-        if purged > 0:
-            print(f"[GC] {purged}件の古いエントリを削除しました（{GC_RETENTION_DAYS}日超）")
-            save_history(history)
 
     client = get_x_client()
 
