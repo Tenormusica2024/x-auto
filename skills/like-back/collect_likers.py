@@ -35,7 +35,7 @@ SNAPSHOT_FILE = SKILL_DIR / "follower_snapshot.json"
 MY_USER_ID = PRIMARY_USER_ID  # x_client.pyの定数を参照（@SundererD27468）
 
 
-def load_config() -> dict:
+def load_config() -> dict[str, int | bool]:
     """config.jsonを読み込む"""
     if CONFIG_FILE.exists():
         return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
@@ -51,7 +51,7 @@ def load_history() -> dict:
     """like_history.jsonを読み込む"""
     if HISTORY_FILE.exists():
         return json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
-    return {"last_run": None, "processed": {}}
+    return {"last_run": None, "processed": {}, "daily_stats": {}, "remaining_users": {}}
 
 
 def save_history(history: dict) -> None:
@@ -348,7 +348,7 @@ def output_and_save(cr: CollectionResult) -> None:
     print(f"\nAPIコスト: ${api_cost:.3f} ({' + '.join(cost_parts)})")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="いいねユーザー収集 + 新規フォロワー検出")
     parser.add_argument("--dry-run", action="store_true", help="収集のみ（出力するが保存しない）")
     parser.add_argument("--count", type=int, default=None, help="チェックするツイート数（未指定時はconfig.jsonのtweet_check_count）")
@@ -359,10 +359,11 @@ def main():
     history = load_history()
 
     # 古い処理済みエントリのGC（90日超を削除）
-    purged = purge_old_history(history)
-    if purged > 0:
-        print(f"[GC] {purged}件の古いエントリを削除しました（{GC_RETENTION_DAYS}日超）")
-        if not args.dry_run:
+    # dry-run時はGCスキップ（in-place変異でhistoryが壊れ、filter_by_historyの結果がずれるため）
+    if not args.dry_run:
+        purged = purge_old_history(history)
+        if purged > 0:
+            print(f"[GC] {purged}件の古いエントリを削除しました（{GC_RETENTION_DAYS}日超）")
             save_history(history)
 
     client = get_x_client()

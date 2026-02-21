@@ -19,11 +19,10 @@ buzz_tweet_extractor.pyのパターンを横展開。
 import asyncio
 import json
 import sys
-import os
 import traceback
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Optional
+from typing import Dict, Optional
 
 # twscrape_patchを先に適用（Twitter JSON解析エラー対策）
 PATCH_PATH = Path(r"C:\Users\Tenormusica\Documents\ai-buzz-extractor-dev\scripts")
@@ -70,13 +69,13 @@ THEME_QUERIES = {
         "description": "AIコーディング時代の人間エンジニアの役割",
         "min_faves": 200,
         "queries": [
-            {"label": "AIコーディング",     "query": "AIコーディング min_faves:200 lang:ja"},
-            {"label": "Vibe Coding",       "query": "vibe coding min_faves:200 lang:ja"},
-            {"label": "AI開発xエンジニア",  "query": "AI 開発 エンジニア min_faves:200 lang:ja"},
-            {"label": "Claude Code",       "query": "Claude Code min_faves:200 lang:ja"},
-            {"label": "AIxプログラマ",      "query": "AI プログラマー 不要 min_faves:200 lang:ja"},
-            {"label": "Copilot開発",       "query": "Copilot 開発 min_faves:200 lang:ja"},
-            {"label": "エンジニア不要論",    "query": "エンジニア 不要 AI min_faves:200 lang:ja"},
+            {"label": "AIコーディング",     "query": "AIコーディング lang:ja"},
+            {"label": "Vibe Coding",       "query": "vibe coding lang:ja"},
+            {"label": "AI開発xエンジニア",  "query": "AI 開発 エンジニア lang:ja"},
+            {"label": "Claude Code",       "query": "Claude Code lang:ja"},
+            {"label": "AIxプログラマ",      "query": "AI プログラマー 不要 lang:ja"},
+            {"label": "Copilot開発",       "query": "Copilot 開発 lang:ja"},
+            {"label": "エンジニア不要論",    "query": "エンジニア 不要 AI lang:ja"},
         ],
     },
 }
@@ -156,6 +155,7 @@ def _tweet_to_dict(tweet, query_label: str, engagement_score: int) -> Dict:
 
 
 async def fetch_themed_tweets(
+    theme_name: str,
     theme_config: Dict,
     dry_run: bool = False,
     query_limit: int = QUERY_LIMIT,
@@ -183,10 +183,13 @@ async def fetch_themed_tweets(
     query_stats = []
     total_fetched = 0
 
+    min_faves = theme_config["min_faves"]
+
     for i, q in enumerate(queries):
         label = q["label"]
         base_query = q["query"]
-        full_query = f"{base_query} -filter:retweets since:{since_str} until:{until_str}"
+        # min_favesはテーマ辞書の値から動的に組み立て（クエリ文字列との二重管理を防止）
+        full_query = f"{base_query} min_faves:{min_faves} -filter:retweets since:{since_str} until:{until_str}"
 
         log(f"[{i+1}/{len(queries)}] {label}: {full_query}")
 
@@ -244,6 +247,8 @@ async def fetch_themed_tweets(
     )[:MAX_OUTPUT]
 
     result = {
+        "theme": theme_name,
+        "description": theme_config["description"],
         "generated_at": datetime.now(JST).isoformat(),
         "search_range_hours": SEARCH_RANGE_HOURS,
         "search_period": {"since": since_str, "until": until_str},
@@ -389,6 +394,7 @@ async def main():
 
     try:
         result = await fetch_themed_tweets(
+            theme_name=theme_name,
             theme_config=theme_config,
             dry_run=args.dry_run,
             query_limit=args.limit,
@@ -398,9 +404,9 @@ async def main():
             log(f"スキップ: {result.get('reason', 'unknown')}", "WARNING")
             sys.exit(0)
 
-        # テーマ情報をresultに追加
-        result["theme"] = theme_name
-        result["description"] = description
+        if args.dry_run:
+            log("dry-run完了 - ファイル保存をスキップ")
+            return
 
         # JSON保存
         json_path = save_json(result, theme_name)

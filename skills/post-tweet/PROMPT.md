@@ -30,15 +30,8 @@ https://x.com/compose/tweet
 3. dialog_filler.py（フォールバック）
 
 **推奨手順（PowerShellクリップボード方式）:**
-```bash
-powershell -File - <<'PS1'
-Add-Type -Assembly System.Windows.Forms
-Add-Type -Assembly System.Drawing
-$img = [System.Drawing.Image]::FromFile("IMAGE_PATH")
-[System.Windows.Forms.Clipboard]::SetImage($img)
-Write-Host "Image copied to clipboard"
-$img.Dispose()
-PS1
+```powershell
+powershell -Command "Add-Type -Assembly System.Windows.Forms; Add-Type -Assembly System.Drawing; $img = [System.Drawing.Image]::FromFile('IMAGE_PATH'); [System.Windows.Forms.Clipboard]::SetImage($img); Write-Host 'Image copied to clipboard'; $img.Dispose()"
 ```
 → テキストエリアをクリック → `key("ctrl+v")` → wait(3秒) → スクショ確認
 
