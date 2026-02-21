@@ -21,7 +21,7 @@ skills/like-back/
 ├── PROMPT.md             # CiC操作手順（実行時参照）
 ├── collect_likers.py     # API: いいねユーザー収集 + 新規フォロワー検出
 ├── config.json           # 設定（日次上限・新規フォロワー）
-├── like_history.json     # 処理履歴
+├── like_history.json     # 処理履歴（processed/daily_stats/remaining_users）
 ├── target_users.json     # collect_likers.py の出力（CiCが読む）
 ├── follower_snapshot.json # フォロワースナップショット（初回実行時に自動生成・差分検出用）
 ├── register_task.ps1     # Task Scheduler登録スクリプト
@@ -41,7 +41,7 @@ skills/like-back/
 翌日以降の実行で差分検出が開始される。
 
 ### 設定
-- `enable_new_follower_likes`: 有効/無効（デフォルト: true）
+- `enable_new_follower_likes`: 有効/無効（コードデフォルト: true、現在の設定値: false）
 - `new_follower_likes`: 新規フォロワー1人あたりのいいね数（デフォルト: 1）
 
 ## 実行コマンド

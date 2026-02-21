@@ -53,8 +53,8 @@ collect_likers.py 実行から CiC 開始までの間に別セッションが処
 5. likes_count の数だけ順に click(ref_1), click(ref_2), ... を実行
    - 例: likes_count=1 → click(ref_1) のみ
    - 例: likes_count=3 → click(ref_1), click(ref_2), click(ref_3)
-8. ★ like_history.json にこのユーザーを即座に追記（フェーズ4参照）
-9. 次のユーザーへ
+6. ★ like_history.json にこのユーザーを即座に追記（フェーズ4参照）
+7. 次のユーザーへ
 ```
 
 #### CiC操作の注意点（テスト実証済み）
@@ -99,13 +99,13 @@ collect_likers.py 実行から CiC 開始までの間に別セッションが処
       "source_tweets_checked": 5
     }
   },
-  "remaining_users": {}
+  "remaining_users": {}  // CiC側で予算超過ユーザーを一時記録する領域
 }
 ```
 
 **⚠️ CiCでWrite時の注意**: `daily_stats` と `remaining_users` を消さないこと。Read→該当エントリ追記→Write の手順で全キーを保持する。
 
-**新規フォロワーの場合**: `source: "new_follower"`, `source_tweets: []`, `liked_count: 1`
+**新規フォロワーの場合**: `source: "new_follower"`, `source_tweets: []`, `liked_count: 1`（`liked_count` は like_history.json 記録用。target_users.json の `likes_count` とは別フィールド）
 
 **スキップしたユーザーも記録する**: リポスト中心でオリジナルが見つからずスキップした場合も、`liked_count: 0`, `skipped_reason: "repost_only"` で記録し、次回の重複チェック対象に含める。
 
@@ -128,6 +128,7 @@ collect_likers.py 実行から CiC 開始までの間に別セッションが処
 - いいね: 最大20件/日（いいね返し + 新規フォロワーの合計）
 - いいね返しユーザーが予算を先に消費し、残りで新規フォロワーを処理
 - 上限に達したら残りは `target_users.json` の `remaining` に記録
+- 予算上限到達時は等価返しの数が一部ユーザーで不足する場合がある。実際にいいねした数を `liked_count` に記録する
 
 ## 注意事項
 - 企業アカウント・botアカウントへのいいね返しは不要（目視で明らかにbotと判断できる場合スキップ）

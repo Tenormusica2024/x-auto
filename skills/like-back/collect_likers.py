@@ -36,7 +36,9 @@ MY_USER_ID = PRIMARY_USER_ID  # x_client.pyの定数を参照（@SundererD27468�
 
 
 def load_config() -> dict[str, int | bool]:
-    """config.jsonを読み込む"""
+    """config.jsonを読み込む。ファイルが存在しない場合のフォールバックデフォルト値を返す。
+    NOTE: enable_new_follower_likesのフォールバックはTrue（機能有効）だが、
+    config.jsonでは現在falseに設定されている。config.json側の値が常に優先される。"""
     if CONFIG_FILE.exists():
         return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     return {
@@ -86,6 +88,7 @@ def purge_old_history(history: dict, retention_days: int = GC_RETENTION_DAYS) ->
             if entry_dt < cutoff:
                 to_delete.append(username)
         except (ValueError, TypeError):
+            print(f"  [WARN] {username} の last_liked_at をパースできません: {last_liked!r}")
             continue
     for username in to_delete:
         del processed[username]
@@ -112,10 +115,14 @@ def save_follower_snapshot(followers: list[dict]) -> None:
         "timestamp": datetime.now(JST).isoformat(),
         "follower_ids": {u["id"]: u["username"] for u in followers},
     }
-    SNAPSHOT_FILE.write_text(
-        json.dumps(snapshot, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    try:
+        SNAPSHOT_FILE.write_text(
+            json.dumps(snapshot, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except OSError as e:
+        print(f"  [ERROR] follower_snapshot.json の保存に失敗: {e}")
+        raise
 
 
 # --- API呼び出し ---
@@ -170,7 +177,8 @@ def get_recent_tweets(client, user_id: str, count: int = 5) -> list[dict]:
 
     tweets = []
     for tweet in resp.data:
-        likes = tweet.public_metrics.get("like_count", 0)
+        metrics = tweet.public_metrics or {}
+        likes = metrics.get("like_count", 0)
         if likes > 0:
             tweets.append({
                 "id": str(tweet.id),
@@ -212,8 +220,9 @@ def get_liking_users(client, tweet_id: str) -> list[dict]:
 MAX_FOLLOWER_PAGES = 50  # ページネーション上限（50,000人まで対応）
 
 
-def get_current_followers(client, user_id: str) -> list[dict]:
-    """自分のフォロワー一覧を取得（ページネーション対応、最大50ページ）"""
+def get_current_followers(client, user_id: str) -> tuple[list[dict], int]:
+    """自分のフォロワー一覧を取得（ページネーション対応、最大50ページ）。
+    戻り値: (フォロワーリスト, 実際のAPI呼び出しページ数)"""
     all_followers = []
     pagination_token = None
     page_count = 0
@@ -249,7 +258,7 @@ def get_current_followers(client, user_id: str) -> list[dict]:
         else:
             break
 
-    return all_followers
+    return all_followers, page_count
 
 
 def detect_new_followers(current_followers: list[dict], snapshot: dict) -> list[dict]:
@@ -323,11 +332,15 @@ def output_and_save(cr: CollectionResult) -> None:
 
     output_file = SKILL_DIR / "target_users.json"
     if not cr.dry_run:
-        output_file.write_text(
-            json.dumps(output_data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        print(f"\n[OK] {output_file} に出力しました")
+        try:
+            output_file.write_text(
+                json.dumps(output_data, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            print(f"\n[OK] {output_file} に出力しました")
+        except OSError as e:
+            print(f"\n[ERROR] target_users.json の保存に失敗: {e}")
+            raise
     else:
         print(f"\n[DRY-RUN] 出力内容:")
 
@@ -440,9 +453,7 @@ def main() -> None:
     if do_followers:
         print(f"\n[3/{total_steps}] 新規フォロワー検出中...")
         try:
-            current_followers = get_current_followers(client, MY_USER_ID)
-            # ページ数からAPI呼び出し回数を推定（1000人/ページ）
-            follower_api_calls = max(1, (len(current_followers) + 999) // 1000)
+            current_followers, follower_api_calls = get_current_followers(client, MY_USER_ID)
             print(f"  現在のフォロワー: {len(current_followers)}人 (API {follower_api_calls}回)")
 
             # 空リストの場合はAPIエラーの可能性が高い → スナップショット更新しない

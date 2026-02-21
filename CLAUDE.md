@@ -91,7 +91,7 @@ AIパワーユーザー・個人開発者のX投稿を生成・レビュー・�
 | `common/expression-rules.md` | 推奨語尾・禁止語尾・表現スタイル |
 | `common/value-rules.md` | 投稿価値ルール（信頼残高基準・5条件・時間責任・自己テスト） |
 | `common/discourse-freshness.md` | 議論進行度マップ（論点の鮮度を段階で判定。一般論着地防止） |
-| `common/buzz-style-reference.md` | バズ文体パターン分析（generate-tweet-buzzから参照） |
+| `common/buzz-style-reference.md` | バズ文体パターン分析（generate-tweet-buzz専用、通常の読み込み順序には含まない） |
 | `common/content-strategy-ref.md` | コンテンツ戦略リファレンス（content_evaluator.pyが毎日自動生成。W-Score順のcontent_type優先度等） |
 
 **読み込み順序**: persona-ref.md -> anti-ai-rules.md -> format-rules.md -> expression-rules.md -> value-rules.md -> discourse-freshness.md -> content-strategy-ref.md -> 各スキルPROMPT.md
