@@ -219,6 +219,57 @@
 
 ---
 
+## B/C/D判定時: 落選理由の記録（MANDATORY）
+
+**A判定以外（B/C/D）の場合、判定理由を `history/rejection_log.json` に記録する。**
+
+同じ失敗パターンの繰り返しを防ぐための成長フィードバックループ。
+
+### 記録手順
+
+1. `history/rejection_log.json` を Read
+2. 新規エントリを `rejections` 配列に追加:
+```json
+{
+  "id": "YYYY-MM-DD-NNN",
+  "judged_at": "ISO8601",
+  "grade": "B/C/D",
+  "content_type": "ai_news/bip/opinion/how-to/quote_rt/engagement/other",
+  "topic_summary": "トピック要約（20字以内）",
+  "primary_failure": "最も低いスコアの評価項目名",
+  "failure_reason": "不合格の具体的理由（1-2文）",
+  "scores": {
+    "accuracy": 点数,
+    "freshness": 点数,
+    "discourse_freshness": 点数,
+    "practicality": 点数,
+    "verifiability": 点数,
+    "developer_value": 点数,
+    "post_value": 点数,
+    "expression_quality": 点数
+  }
+}
+```
+3. `last_updated` を更新
+4. Write で保存
+
+### フィールド解説
+
+| フィールド | 用途 |
+|-----------|------|
+| `primary_failure` | 最も致命的だった評価軸（generate-tweetが次回回避に使う） |
+| `failure_reason` | 具体的な不合格理由（「3日前のニュースを最新として扱った」等） |
+| `content_type` | どのジャンルで失敗が多いかの傾向分析用 |
+| `scores` | 全8軸のスコア記録（パターン分析用） |
+
+### 記録の原則
+
+- **A判定時は記録しない**（成功パターンは `adopted_tweets.json` に記録済み）
+- **同日に複数回落選した場合は全て記録**（IDは連番: `2026-02-21-001`, `002`, ...）
+- **記録は30件を超えたら古い方から削除**（直近30件のみ保持）
+
+---
+
 ## 注意事項
 
 - **A判定のみ投稿可能** - 妥協なし（ただし話題性とのトレードオフあり）

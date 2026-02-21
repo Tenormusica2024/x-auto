@@ -109,7 +109,8 @@ recent_sources = [s["url"] for t in tweets[-10:] for s in t["sources"]]
 
 ## 関連ファイル
 
-- `x-auto/history/adopted_tweets.json` - 履歴データ本体
+- `x-auto/history/adopted_tweets.json` - 採用済みツイート履歴（成功パターン）
+- `x-auto/history/rejection_log.json` - 落選理由ログ（失敗パターン。tweet-quality-judgeがB/C/D判定時に記録）
 - `x-auto/drafts/` - 下書き保存（未確定）
 - `x-auto/skills/generate-tweet/` - 通常ツイート生成
 - `x-auto/skills/long-form-tweet/` - 長文ツイート生成

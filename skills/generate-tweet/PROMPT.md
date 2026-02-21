@@ -61,6 +61,26 @@ zeitgeist-snapshot.json を読み込んで日本AI界隈の空気感を確認す
 
 **注意:** このファイルはcontent_evaluator.pyが毎日自動更新。存在しない場合はスキップ。
 
+### ステップ4.3: 過去の落選パターン確認
+
+`history/rejection_log.json` を読み込み、直近の落選パターンを把握して同じ失敗を回避する。
+
+**読み込み先:** `C:\Users\Tenormusica\x-auto\history\rejection_log.json`
+
+**活用方法:**
+1. `rejections` 配列の直近10件を確認
+2. `primary_failure` の頻出項目を特定（例: `freshness` が3回連続 → 鮮度に特に注意）
+3. `failure_reason` の具体的内容を確認し、同じミスを避ける
+4. `content_type` の傾向を確認（特定ジャンルで落ち続けていないか）
+
+**回避アクション例:**
+- `freshness` 頻出 → 一次情報の発表日確認をより厳格に
+- `expression_quality` 頻出 → 敬語調・翻訳感チェックを意識的に強化
+- `developer_value` 頻出 → ネタ選定段階で技術的価値を重視
+- `post_value` 頻出 → 5条件（value-rules.md）との照合を強化
+
+**注意:** rejection_log.json が存在しない/空の場合はスキップ。
+
 ### ステップ4.5: バズツイートシード選定（BIP/TIP系で活用推奨）
 
 蓄積されたバズツイートデータを参照し、ツイート生成の**種（シード）**候補を選定する。
