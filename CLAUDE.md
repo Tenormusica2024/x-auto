@@ -93,8 +93,9 @@ AIパワーユーザー・個人開発者のX投稿を生成・レビュー・�
 | `common/discourse-freshness.md` | 議論進行度マップ（論点の鮮度を段階で判定。一般論着地防止） |
 | `common/buzz-style-reference.md` | バズ文体パターン分析（generate-tweet-buzz専用、通常の読み込み順序には含まない） |
 | `common/content-strategy-ref.md` | コンテンツ戦略リファレンス（content_evaluator.pyが毎日自動生成。W-Score順のcontent_type優先度等） |
+| `common/rejection-log-ref.md` | 落選パターン確認手順（rejection_log.jsonの読み込み・活用方法・回避アクション） |
 
-**読み込み順序**: persona-ref.md -> anti-ai-rules.md -> format-rules.md -> expression-rules.md -> value-rules.md -> discourse-freshness.md -> content-strategy-ref.md -> 各スキルPROMPT.md
+**読み込み順序**: persona-ref.md -> anti-ai-rules.md -> format-rules.md -> expression-rules.md -> value-rules.md -> discourse-freshness.md -> content-strategy-ref.md -> rejection-log-ref.md -> 各スキルPROMPT.md
 
 ## ユーティリティスキル（MANDATORY: 該当キーワード検出時はスキルを読んでから作業）
 
