@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-03-05T22:00:00+09:00",
+  "last_updated": "2026-03-06T08:00:00+09:00",
   "corrections": [
     {
       "date": "2026-02-28",
@@ -117,6 +117,15 @@
       "after": "Grok X飽和度チェックをStep 5と鮮度チェッカーに追加。CiC（grok.com）優先、API（grok-3-mini）はフォールバック",
       "correction": "情報鮮度のレビューはgrokが強い。x-autoではgrokを使わないパイプラインになっていた構造的ギャップ",
       "applied_to": "skills/generate-tweet/PROMPT.md, skills/news-freshness-checker/PROMPT.md"
+    },
+    {
+      "date": "2026-03-06",
+      "type": "rule_change",
+      "summary": "noteプロジェクトP6/P7をx-autoに横展開",
+      "before": "助詞セクションは基本3例+一般論のみ。review-tweetに助詞チェック項目なし。述語解像度の概念なし",
+      "after": "P6-a（目的語宙吊り）・P6-d（読点英語化）の構造化パターン+判定テスト追加。P7（述語解像度）セクション新設。review-tweetに助詞・述語の2チェック項目追加",
+      "correction": "noteマネタイズ記事で発見した助詞省略問題がツイートでも発生している。noteプロジェクトのナレッジで使えそうなものをx-autoにも持ってきたい",
+      "applied_to": "common/expression-rules.md, skills/review-tweet/PROMPT.md"
     }
   ]
 }
