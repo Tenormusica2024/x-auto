@@ -1,4 +1,122 @@
 {
-  "last_updated": "2026-02-21T23:00:00+09:00",
-  "corrections": []
+  "last_updated": "2026-03-05T22:00:00+09:00",
+  "corrections": [
+    {
+      "date": "2026-02-28",
+      "type": "framing",
+      "summary": "Claude系モデル比較ツイートはAPI価格差よりサブスク週枠差を主軸にする",
+      "before": "Sonnet vs Opus比較でAPI価格（1/5など）を前面に出す",
+      "after": "サブスクユーザーにとってのOpus週40時間 vs Sonnet週480時間（12倍差）を核心に据える。API価格は補足情報",
+      "correction": "API価格を1/5と書いたらAPIをそのまま使う人向けの話になる。サブスクユーザーの方が読者が多い",
+      "applied_to": "Claude系モデル比較ツイート全般"
+    },
+    {
+      "date": "2026-02-28",
+      "type": "fact_check",
+      "summary": "Anthropicマーケ数値（旧世代比較）をそのまま使わない",
+      "before": "「59%がOpus 4.5より好む」をSonnet 4.6の優位性根拠として使用",
+      "after": "Sonnet 4.6リリース後にOpus 4.5と比較する数値は時系列的に不自然。Anthropic発の比較数値は新旧世代の確認必須",
+      "correction": "sonnet4.6が出たあとでopus4.5と比較してると時系列的にちょっとあれって思っちゃう",
+      "applied_to": "モデル比較ツイート生成時のファクトチェック観点"
+    },
+    {
+      "date": "2026-02-28",
+      "type": "content_depth",
+      "summary": "モデル比較ツイートはいい点・悪い点の両方を含む",
+      "before": "リリースの良い点だけを列挙する構成",
+      "after": "いい点（コスト効率・週枠拡大）と悪い点（GPQA差・adaptive thinking過消費・Agent Teams非対応）を両方含める",
+      "correction": "いい点と悪い点を両方含めたツイートにしたい",
+      "applied_to": "モデル比較・新機能紹介ツイート"
+    },
+    {
+      "date": "2026-02-27",
+      "type": "rule_change",
+      "summary": "interests.jsonをフィルターから深度調整に再定義",
+      "before": "interests.json: high_interestの領域か（採用判断に使用）。ペルソナと接点がないネタは採用しない",
+      "after": "トピック選定フィルターではなく深度調整ツール。no_interestでも切り口があれば扱える。切り口が全く見つからない場合のみ採用しない",
+      "correction": "ペルソナ強化がマイナスに働いてる。扱えるカテゴリの幅が狭くなる。persona-dbを利用するすべてのプログラムに同じ観点を当てはめてほしい",
+      "applied_to": "common/persona-ref.md, persona-db/CLAUDE.md, workflows/en-insight-to-tweet.md, workflows/themed-buzz-to-tweet.md, skills/generate-tweet/PROMPT.md"
+    },
+    {
+      "date": "2026-02-26",
+      "type": "rule_change",
+      "summary": "politeモード例外をanti-ai-rules.mdから削除",
+      "before": "「〜ですね」「〜でしょう」「〜だと思います」 | AI臭い丁寧語・敬語（※politeモード時は許可。tone.json参照）",
+      "after": "politeモード例外を削除。敬体は無条件で禁止パターン",
+      "correction": "politeモードは解除してほしい。全部修正しよう",
+      "applied_to": "common/anti-ai-rules.md"
+    },
+    {
+      "date": "2026-02-26",
+      "type": "rule_change",
+      "summary": "politeモード廃止・常体をデフォルトに",
+      "before": "情報共有系・広いリーチ狙いのツイートではpoliteモード（敬体）を選択可",
+      "after": "常体（casual）をMANDATORY。tone.jsonのformality設定に関わらず常体で生成。敬体はreview-tweetでFAIL",
+      "correction": "politeモードは解除してほしい。casualになってない文は書き直して",
+      "applied_to": "skills/generate-tweet/PROMPT.md"
+    },
+    {
+      "date": "2026-02-26",
+      "type": "tone",
+      "summary": "3案の温度感がワンパターン",
+      "before": "3案は切り口（角度）のみ変化。温度感は全案同じ",
+      "after": "感情軸プール6種からランダム3種を選択し、切り口＋温度感の両方を変化させる",
+      "correction": "毎回却下案も含めて全部見ると口調に幅がない。人間を模倣するなら温度感のバリエーションが必要",
+      "applied_to": "skills/generate-tweet/PROMPT.md"
+    },
+    {
+      "date": "2026-03-03",
+      "type": "framing",
+      "summary": "冒頭で主観評価を先出しせず事実提示で引き込む",
+      "before": "「〜っていうアプローチはあんまりなかったと思うんだよね」と自分の評価を冒頭で先に提示",
+      "after": "「〜っていうものが出てきた」と事実を提示し、評価は読者に委ねる",
+      "correction": "冒頭の主観評価を事実提示に変更。読者に先入観を与えない構造の方が引き込める",
+      "applied_to": "新ツール紹介系ツイートの冒頭構成"
+    },
+    {
+      "date": "2026-03-03",
+      "type": "format",
+      "summary": "情報列挙でも箇条書き風にせず文として流す",
+      "before": "ツール名/技術仕様/性能を3行に分割（1行1情報の箇条書き風）",
+      "after": "1段落の文として結合し自然に読ませる",
+      "correction": "技術情報の密集部分は箇条書き分割よりも文として流した方が読みやすい",
+      "applied_to": "技術仕様の説明ブロック全般"
+    },
+    {
+      "date": "2026-03-03",
+      "type": "expression",
+      "summary": "情報密度が高い部分では口語をやや抑える",
+      "before": "「Claude Adsっていうオープンソースで」（カジュアル口語）",
+      "after": "「Claude Adsというオープンソースで」（標準表現）",
+      "correction": "情報密度が高い技術説明部分ではカジュアルすぎる「っていう」より「という」の方がスムーズに読み進められる",
+      "applied_to": "技術ツール名称に続く説明部分"
+    },
+    {
+      "date": "2026-03-05",
+      "type": "rule_change",
+      "summary": "規制・法律ニュースをinstant-Dから二次情報ゲートに変更",
+      "before": "規制・法律ニュース → 即D判定/即REJECT/即スキップ（一律NG）",
+      "after": "二次情報ゲート: 自分だけが出せる技術情報・体験・独自分析があるか？YES→通常評価 / NO→D判定",
+      "correction": "一大ニュースに毎回触れないAI関係のスタンスは難しい。規制・法律自体全部NGとする必要はない。今回NGだったのは二次情報として勝負できる価値がなかったから",
+      "applied_to": "skills/tweet-quality-judge/PROMPT.md, skills/generate-tweet/PROMPT.md, skills/news-freshness-checker/PROMPT.md"
+    },
+    {
+      "date": "2026-03-05",
+      "type": "rule_change",
+      "summary": "ニュース系に第一報vs二次情報の明示分岐を追加",
+      "before": "ニュース系トピック選定時に第一報/二次情報の区別なし",
+      "after": "第一報ルート（48h以内+未消化）vs 二次情報ルート（差別化できる具体的価値の事前明文化必須）を明示分岐",
+      "correction": "大トピックから1週間経過後に第一報的な書き方をすると質の低いツイートになる。二次情報で勝負する場合は事前に価値を特定すべき",
+      "applied_to": "skills/generate-tweet/PROMPT.md"
+    },
+    {
+      "date": "2026-03-05",
+      "type": "rule_change",
+      "summary": "x-autoパイプラインにGrok飽和度チェックを統合",
+      "before": "generate-tweet/news-freshness-checkerにGrok統合なし。WebSearchのみで鮮度判定",
+      "after": "Grok X飽和度チェックをStep 5と鮮度チェッカーに追加。CiC（grok.com）優先、API（grok-3-mini）はフォールバック",
+      "correction": "情報鮮度のレビューはgrokが強い。x-autoではgrokを使わないパイプラインになっていた構造的ギャップ",
+      "applied_to": "skills/generate-tweet/PROMPT.md, skills/news-freshness-checker/PROMPT.md"
+    }
+  ]
 }
