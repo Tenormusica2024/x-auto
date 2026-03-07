@@ -126,6 +126,15 @@
       "after": "P6-a（目的語宙吊り）・P6-d（読点英語化）の構造化パターン+判定テスト追加。P7（述語解像度）セクション新設。review-tweetに助詞・述語の2チェック項目追加",
       "correction": "noteマネタイズ記事で発見した助詞省略問題がツイートでも発生している。noteプロジェクトのナレッジで使えそうなものをx-autoにも持ってきたい",
       "applied_to": "common/expression-rules.md, skills/review-tweet/PROMPT.md"
+    },
+    {
+      "date": "2026-03-07",
+      "type": "rule_change",
+      "summary": "助詞チェックをパイプライン3箇所に強制組み込み（AIの自己判断スキップ防止）",
+      "before": "助詞チェックはreview-tweet Section 3.5の1項目のみ。generate-tweetの事前チェックに助詞なし。tweet-quality-judgeの表現品質に助詞なし。review-tweetの助詞チェックに省略禁止の強制指示なし",
+      "after": "generate-tweet Step 10-Aに助詞・述語の事前チェック追加。tweet-quality-judge軸8に助詞チェック+10点減点追加。review-tweet助詞チェックにMANDATORY+機械的全他動詞抽出を追加",
+      "correction": "「着せ替え試したい」→「着せ替えを試したい」がA判定をすり抜けた。AIが関係薄いと自己判断してチェックを省略する余地を構造的に封じる必要がある",
+      "applied_to": "skills/generate-tweet/PROMPT.md, skills/tweet-quality-judge/PROMPT.md, skills/review-tweet/PROMPT.md"
     }
   ]
 }
