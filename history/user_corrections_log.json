@@ -135,6 +135,15 @@
       "after": "generate-tweet Step 10-Aに助詞・述語の事前チェック追加。tweet-quality-judge軸8に助詞チェック+10点減点追加。review-tweet助詞チェックにMANDATORY+機械的全他動詞抽出を追加",
       "correction": "「着せ替え試したい」→「着せ替えを試したい」がA判定をすり抜けた。AIが関係薄いと自己判断してチェックを省略する余地を構造的に封じる必要がある",
       "applied_to": "skills/generate-tweet/PROMPT.md, skills/tweet-quality-judge/PROMPT.md, skills/review-tweet/PROMPT.md"
+    },
+    {
+      "date": "2026-03-07",
+      "type": "rule_change",
+      "summary": "long-form-tweetに助詞・述語チェック追加",
+      "before": "long-form-tweetはexpression-rules.mdを参照するだけで助詞・述語の事前チェック項目なし",
+      "after": "ステップ4の推奨語尾セクションに「事前チェック」ブロックを追加（助詞・目的語/述語解像度）。品質チェックリストの表現チェック節にも同2項目を追加",
+      "correction": "generate-tweetは3層チェック対応済みだがlong-form-tweetが未対応。長文は助詞省略が起きやすいのに非対称だった。さらに品質チェックリストへの追加が漏れており生成後検証フローに繋がっていなかった",
+      "applied_to": "skills/long-form-tweet/PROMPT.md"
     }
   ]
 }
